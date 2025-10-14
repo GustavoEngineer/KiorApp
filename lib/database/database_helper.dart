@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:kiorapp/models/tag.dart';
+import 'package:kiorapp/models/task.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -38,38 +40,62 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute("CREATE TABLE tags(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)");
+      await db.execute("ALTER TABLE tasks ADD COLUMN start_date INTEGER");
+      await db.execute("ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 0");
     }
   }
 
-  Future<int> insertTask(Map<String, dynamic> task) async {
+  Future<int> insertTask(Task task) async {
     Database db = await database;
-    return await db.insert('tasks', task);
+    return await db.insert('tasks', task.toMap());
   }
 
-  Future<List<Map<String, dynamic>>> getTasks() async {
+  Future<List<Task>> getTasks() async {
     Database db = await database;
-    return await db.query('tasks');
+    final List<Map<String, dynamic>> maps = await db.query('tasks');
+    return maps.map((m) => Task.fromMap(m)).toList();
   }
 
-  Future<int> updateTask(Map<String, dynamic> task) async {
+  Future<int> updateTask(Task task) async {
     Database db = await database;
-    return await db.update('tasks', task, where: 'id = ?', whereArgs: [task['id']]);
+    return await db.update('tasks', task.toMap(), where: 'id = ?', whereArgs: [task.id]);
   }
 
   Future<int> deleteTask(int id) async {
     Database db = await database;
+    await db.delete('task_tags', where: 'task_id = ?', whereArgs: [id]);
     return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<int> insertTag(Map<String, dynamic> tag) async {
+  Future<int> insertTag(Tag tag) async {
     Database db = await database;
-    return await db.insert('tags', tag, conflictAlgorithm: ConflictAlgorithm.ignore);
+    return await db.insert('tags', tag.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
-  Future<List<Map<String, dynamic>>> getTags() async {
+  Future<void> insertTaskWithTags(Task task, List<Tag> tags) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      int taskId = await txn.insert('tasks', task.toMap());
+      for (Tag tag in tags) {
+        await txn.insert('task_tags', {'task_id': taskId, 'tag_id': tag.id});
+      }
+    });
+  }
+
+  Future<List<Tag>> getTagsForTask(int taskId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    SELECT t.* FROM tags t
+    INNER JOIN task_tags tt ON t.id = tt.tag_id
+    WHERE tt.task_id = ?
+  ''', [taskId]);
+    return maps.map((map) => Tag.fromMap(map)).toList();
+  }
+
+  Future<List<Tag>> getTags() async {
     Database db = await database;
-    return await db.query('tags');
+    final List<Map<String, dynamic>> maps = await db.query('tags');
+    return maps.map((m) => Tag.fromMap(m)).toList();
   }
 
   Future<int> deleteTag(int id) async {
@@ -77,8 +103,8 @@ class DatabaseHelper {
     return await db.delete('tags', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<int> updateTag(Map<String, dynamic> tag) async {
+  Future<int> updateTag(Tag tag) async {
     Database db = await database;
-    return await db.update('tags', tag, where: 'id = ?', whereArgs: [tag['id']]);
+    return await db.update('tags', tag.toMap(), where: 'id = ?', whereArgs: [tag.id]);
   }
 }

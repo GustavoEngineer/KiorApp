@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kiorapp/database/database_helper.dart';
+import 'package:kiorapp/models/tag.dart';
 
 class TagsScreen extends StatefulWidget {
   const TagsScreen({super.key});
@@ -9,7 +10,7 @@ class TagsScreen extends StatefulWidget {
 }
 
 class _TagsScreenState extends State<TagsScreen> {
-  List<Map<String, dynamic>> _tags = [];
+  List<Tag> _tags = [];
   final _tagNameController = TextEditingController();
 
   @override
@@ -25,9 +26,9 @@ class _TagsScreenState extends State<TagsScreen> {
     });
   }
 
-  void _showTagDialog({Map<String, dynamic>? tag}) {
+  void _showTagDialog({Tag? tag}) {
     final isEditing = tag != null;
-    _tagNameController.text = isEditing ? tag['name'] : '';
+    _tagNameController.text = isEditing ? tag.name : '';
 
     showDialog(
       context: context,
@@ -50,13 +51,11 @@ class _TagsScreenState extends State<TagsScreen> {
               final tagName = _tagNameController.text;
               if (tagName.isNotEmpty) {
                 if (isEditing) {
-                  final updatedTag = {
-                    'id': tag['id'],
-                    'name': tagName,
-                  };
+                  final updatedTag = Tag(id: tag.id, name: tagName);
                   await DatabaseHelper().updateTag(updatedTag);
                 } else {
-                  await DatabaseHelper().insertTag({'name': tagName});
+                  final newTag = Tag(name: tagName);
+                  await DatabaseHelper().insertTag(newTag);
                 }
                 _tagNameController.clear();
                 _loadTags();
@@ -75,23 +74,22 @@ class _TagsScreenState extends State<TagsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tags'),
-      ),
+      appBar: AppBar(title: const Text('Tags')),
       body: ListView.builder(
         itemCount: _tags.length,
         itemBuilder: (context, index) {
           final tag = _tags[index];
           return Dismissible(
-            key: ValueKey(tag['id']),
+            key: ValueKey(tag.id),
             direction: DismissDirection.endToStart,
             onDismissed: (direction) async {
-              await DatabaseHelper().deleteTag(tag['id']);
+              await DatabaseHelper().deleteTag(tag.id!);
               setState(() {
                 _tags.removeAt(index);
               });
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${tag['name']} deleted')),
+                // No es necesario el mounted check aquí
+                SnackBar(content: Text('${tag.name} deleted')),
               );
             },
             background: Container(
@@ -101,7 +99,7 @@ class _TagsScreenState extends State<TagsScreen> {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             child: ListTile(
-              title: Text(tag['name'] ?? ''),
+              title: Text(tag.name),
               onTap: () => _showTagDialog(tag: tag),
             ),
           );

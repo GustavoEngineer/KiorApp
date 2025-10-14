@@ -33,41 +33,35 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   final GlobalKey<HomeScreenState> _homeScreenKey =
       GlobalKey<HomeScreenState>();
-  // No necesitamos una lista de pantallas, solo HomeScreen.
 
   void _onItemTapped(int index) async {
-    // El índice 0 es para 'Tasks', que ya está visible.
     if (index == 1) {
-      final result = await Navigator.of(
-        context,
-      ).push(TopDownPageRoute(child: const NewTaskScreen()));
-      if (result == true) {
-        // Si se guardó una tarea, recargamos la lista en HomeScreen.
-        _homeScreenKey.currentState?.loadTasks();
+      final result = await Navigator.of(context).push(
+        TopDownPageRoute(child: const NewTaskScreen()),
+      );
+      if (result == true && _homeScreenKey.currentState != null) {
+        await _homeScreenKey.currentState!.loadTasks();
+        setState(() {
+          _selectedIndex = 0;
+        });
       }
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
     }
-    // Actualizamos el índice seleccionado para el feedback visual del BottomNavigationBar.
-    setState(() {
-      _selectedIndex = index;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // El Scaffold es el contenedor principal de la pantalla.
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).primaryColor,
-              Theme.of(context).primaryColor.withOpacity(0.8),
-            ],
-          ),
-        ),
-        child: HomeScreen(key: _homeScreenKey),
-      ),
+      // El body contendrá la pantalla principal (HomeScreen).
+      // Usamos una clave (key) para poder acceder al estado de HomeScreen
+      // desde este widget (MainScreen) y así poder recargar las tareas.
+      body: HomeScreen(key: _homeScreenKey),
+
+      // La barra de navegación inferior.
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Tasks'),

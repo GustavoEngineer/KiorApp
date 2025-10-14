@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:kiorapp/database/database_helper.dart';
+import 'package:kiorapp/models/task.dart';
 
 class NewTaskScreen extends StatefulWidget {
-  final Map<String, dynamic>? task;
+  final Task? task;
   const NewTaskScreen({super.key, this.task});
 
   @override
@@ -14,7 +15,6 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
   final _taskNameController = TextEditingController();
   final _descriptionController = TextEditingController();
   DateTime? _dueDate;
-  bool _isCompleted = false;
   String? _selectedLabel;
   List<String> _labels = [];
 
@@ -23,20 +23,17 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
     super.initState();
     _loadLabels();
     if (widget.task != null) {
-      _taskNameController.text = widget.task!['name'] ?? '';
-      _descriptionController.text = widget.task!['description'] ?? '';
-      if (widget.task!['due_date'] != null) {
-        _dueDate = DateTime.parse(widget.task!['due_date']);
-      }
-      _selectedLabel = widget.task!['label'];
-      _isCompleted = widget.task!['is_completed'] == 1;
+      _taskNameController.text = widget.task!.name;
+      _descriptionController.text = widget.task!.description ?? '';
+      _dueDate = widget.task!.dueDate;
+      _selectedLabel = widget.task!.label;
     }
   }
 
   Future<void> _loadLabels() async {
     final labels = await DatabaseHelper().getTags();
     setState(() {
-      _labels = labels.map((e) => e['name'] as String).toList();
+      _labels = labels.map((tag) => tag.name).toList();
     });
   }
 
@@ -183,21 +180,21 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                     ElevatedButton(
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          final task = {
-                            'name': _taskNameController.text,
-                            'description': _descriptionController.text,
-                            'due_date': _dueDate?.toIso8601String(),
-                            'label': _selectedLabel,
-                            'is_completed': _isCompleted ? 1 : 0,
-                          };
-
                           if (widget.task == null) {
+                            final task = Task(
+                              name: _taskNameController.text,
+                              description: _descriptionController.text,
+                              dueDate: _dueDate,
+                              label: _selectedLabel,
+                            );
                             await DatabaseHelper().insertTask(task);
                           } else {
-                            final updatedTask = {
-                              'id': widget.task!['id'],
-                              ...task,
-                            };
+                            final updatedTask = widget.task!.copyWith(
+                              name: _taskNameController.text,
+                              description: _descriptionController.text,
+                              dueDate: _dueDate,
+                              label: _selectedLabel,
+                            );
                             await DatabaseHelper().updateTask(updatedTask);
                           }
 

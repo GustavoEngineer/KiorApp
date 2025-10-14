@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kiorapp/database/database_helper.dart';
+import 'package:kiorapp/models/task.dart';
 import 'package:kiorapp/screens/new_task_screen.dart';
 import 'package:kiorapp/screens/tags_screen.dart';
 
@@ -11,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> _tasks = [];
+  List<Task> _tasks = [];
 
   @override
   void initState() {
@@ -22,24 +23,14 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> loadTasks() async {
     final tasks = await DatabaseHelper().getTasks();
     setState(() {
-      _tasks = List.from(tasks); // Create a mutable copy
+      _tasks = tasks;
     });
   }
 
-  void _navigateToEditTask(Map<String, dynamic> task) async {
+  void _navigateToEditTask(Task task) async {
     final result = await Navigator.of(
       context,
     ).push(TopDownPageRoute(child: NewTaskScreen(task: task)));
-    if (result == true) {
-      loadTasks();
-    }
-  }
-
-  void _navigateToNewTask() async {
-    final result = await Navigator.of(
-      context,
-    ).push(TopDownPageRoute(child: const NewTaskScreen()));
-
     if (result == true) {
       loadTasks();
     }
@@ -89,22 +80,26 @@ class HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           final task = _tasks[index];
           return Dismissible(
-            key: ValueKey(task['id']),
+            key: ValueKey(task.id),
             direction: DismissDirection.horizontal,
             onDismissed: (direction) async {
-              // This will only be triggered for deletions (startToEnd)
-              if (direction == DismissDirection.startToEnd && mounted) {
+              if (direction == DismissDirection.startToEnd) {
+                if (task.id != null) {
+                  await DatabaseHelper().deleteTask(task.id!);
+                }
+                setState(() {
+                  _tasks.removeWhere((t) => t.id == task.id);
+                });
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Task "${task['name']}" deleted')),
+                    SnackBar(content: Text('Task "${task.name}" deleted')),
                   );
                 }
               }
             },
             confirmDismiss: (direction) async {
               if (direction == DismissDirection.startToEnd) {
-                // Swipe Right (Delete)
-                final bool? confirmDelete = await showDialog<bool>(
+                return await showDialog<bool>(
                   context: context,
                   builder: (BuildContext context) {
                     return AlertDialog(
@@ -118,33 +113,20 @@ class HomeScreenState extends State<HomeScreen> {
                           child: const Text("CANCEL"),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.of(
-                            context,
-                          ).pop(true), // Confirm deletion
+                          onPressed: () => Navigator.of(context).pop(true),
                           child: const Text("DELETE"),
                         ),
                       ],
                     );
                   },
                 );
-
-                if (confirmDelete == true) {
-                  await DatabaseHelper().deleteTask(task['id']);
-                  setState(() {
-                    _tasks.removeAt(index);
-                  });
-                }
-                return confirmDelete; // This will trigger onDismissed if true
               } else {
                 // direction == DismissDirection.endToStart (Complete/Uncomplete)
-                final bool isCompleted = task['is_completed'] == 1;
+                final bool isCompleted = task.isCompleted;
                 final confirm = await _showCompleteConfirmDialog(isCompleted);
 
                 if (confirm == true) {
-                  final updatedTask = {
-                    ...task,
-                    'is_completed': isCompleted ? 0 : 1,
-                  };
+                  final updatedTask = task.copyWith(isCompleted: !isCompleted);
                   await DatabaseHelper().updateTask(updatedTask);
                   setState(() {
                     _tasks[index] = updatedTask;
@@ -161,11 +143,11 @@ class HomeScreenState extends State<HomeScreen> {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             secondaryBackground: Container(
-              color: task['is_completed'] == 1 ? Colors.orange : Colors.green,
+              color: task.isCompleted ? Colors.orange : Colors.green,
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Icon(
-                task['is_completed'] == 1 ? Icons.undo : Icons.check_circle,
+                task.isCompleted ? Icons.undo : Icons.check_circle,
                 color: Colors.white,
               ),
             ),
@@ -179,9 +161,7 @@ class HomeScreenState extends State<HomeScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15.0),
                   ),
-                  color: task['is_completed'] == 1
-                      ? Colors.grey[300]
-                      : Colors.white,
+                  color: task.isCompleted ? Colors.grey[300] : Colors.white,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15.0),
                     onTap: () => _navigateToEditTask(task),
@@ -193,11 +173,9 @@ class HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (task['due_date'] != null) ...[
+                          if (task.dueDate != null) ...[
                             Text(
-                              DateTime.parse(
-                                task['due_date'],
-                              ).toLocal().toString().split(' ')[0],
+                              task.dueDate!.toLocal().toString().split(' ')[0],
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 12,
@@ -206,19 +184,19 @@ class HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 4),
                           ],
                           Text(
-                            task['name'] ?? '',
+                            task.name,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: task['is_completed'] == 1
+                              color: task.isCompleted
                                   ? Colors.grey.shade700
                                   : Colors.black,
-                              decoration: task['is_completed'] == 1
+                              decoration: task.isCompleted
                                   ? TextDecoration.lineThrough
                                   : TextDecoration.none,
                             ),
                           ),
-                          if (task['label'] != null) ...[
+                          if (task.label != null) ...[
                             const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -232,7 +210,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                task['label'],
+                                task.label!,
                                 style: TextStyle(
                                   color: Theme.of(context).primaryColor,
                                   fontWeight: FontWeight.w500,
