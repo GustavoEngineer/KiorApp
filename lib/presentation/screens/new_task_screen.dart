@@ -45,7 +45,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     final tags = ref.watch(tagProvider);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       body: Align(
         alignment: Alignment.topCenter,
         child: Padding(
