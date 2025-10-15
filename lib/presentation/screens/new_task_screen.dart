@@ -1,51 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:kiorapp/database/database_helper.dart';
-import 'package:kiorapp/models/task.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kiorapp/data/models/task.dart';
+import 'package:kiorapp/presentation/providers/task_provider.dart';
+import 'package:kiorapp/presentation/providers/tag_provider.dart';
 
-class NewTaskScreen extends StatefulWidget {
+class NewTaskScreen extends ConsumerStatefulWidget {
   final Task? task;
   const NewTaskScreen({super.key, this.task});
 
   @override
-  State<NewTaskScreen> createState() => _NewTaskScreenState();
+  ConsumerState<NewTaskScreen> createState() => _NewTaskScreenState();
 }
 
-class _NewTaskScreenState extends State<NewTaskScreen> {
+class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   final _formKey = GlobalKey<FormState>();
   final _taskNameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _estimatedTimeController = TextEditingController();
   DateTime? _dueDate;
-  String? _selectedLabel;
-  List<String> _labels = [];
+  int? _selectedTagId;
 
   @override
   void initState() {
     super.initState();
-    _loadLabels();
     if (widget.task != null) {
       _taskNameController.text = widget.task!.name;
       _descriptionController.text = widget.task!.description ?? '';
       _dueDate = widget.task!.dueDate;
-      _selectedLabel = widget.task!.label;
+      _estimatedTimeController.text =
+          widget.task!.estimatedTime?.toString() ?? '';
     }
-  }
-
-  Future<void> _loadLabels() async {
-    final labels = await DatabaseHelper().getTags();
-    setState(() {
-      _labels = labels.map((tag) => tag.name).toList();
-    });
   }
 
   @override
   void dispose() {
     _taskNameController.dispose();
     _descriptionController.dispose();
+    _estimatedTimeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final tags = ref.watch(tagProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Align(
@@ -73,7 +71,6 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 1. Fila del título y botón de cerrar
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -105,8 +102,6 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // 2. Campos de texto para nombre y descripción
                     TextFormField(
                       controller: _descriptionController,
                       decoration: const InputDecoration(
@@ -117,8 +112,17 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // 3. Filas de contenido
+                    TextFormField(
+                      controller: _estimatedTimeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tiempo estimado (horas)',
+                        border: InputBorder.none,
+                        fillColor: Colors.white,
+                        filled: true,
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 24),
                     _buildInfoRow(
                       icon: Icons.calendar_today,
                       title: 'Time',
@@ -156,49 +160,43 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                     _buildInfoRow(
                       icon: Icons.label_outline,
                       title: 'Label',
-                      valueWidget: DropdownButton<String>(
-                        value: _selectedLabel,
+                      valueWidget: DropdownButton<int>(
+                        value: _selectedTagId,
                         hint: const Text('Select'),
                         underline: const SizedBox.shrink(),
-                        onChanged: (String? newValue) {
+                        onChanged: (int? newValue) {
                           setState(() {
-                            _selectedLabel = newValue;
+                            _selectedTagId = newValue;
                           });
                         },
-                        items: _labels.map<DropdownMenuItem<String>>((
-                          String value,
-                        ) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
+                        items: tags.map((tag) {
+                          return DropdownMenuItem<int>(
+                            value: tag.id,
+                            child: Text(tag.name),
                           );
                         }).toList(),
                       ),
                     ),
-
                     const SizedBox(height: 32),
                     ElevatedButton(
-                      onPressed: () async {
+                      onPressed: () {
                         if (_formKey.currentState!.validate()) {
+                          final estimatedTime = double.tryParse(
+                            _estimatedTimeController.text,
+                          );
+                          final task = Task(
+                            id: widget.task?.id,
+                            name: _taskNameController.text,
+                            description: _descriptionController.text,
+                            dueDate: _dueDate,
+                            estimatedTime: estimatedTime,
+                          );
                           if (widget.task == null) {
-                            final task = Task(
-                              name: _taskNameController.text,
-                              description: _descriptionController.text,
-                              dueDate: _dueDate,
-                              label: _selectedLabel,
-                            );
-                            await DatabaseHelper().insertTask(task);
+                            ref.read(taskProvider.notifier).addTask(task);
                           } else {
-                            final updatedTask = widget.task!.copyWith(
-                              name: _taskNameController.text,
-                              description: _descriptionController.text,
-                              dueDate: _dueDate,
-                              label: _selectedLabel,
-                            );
-                            await DatabaseHelper().updateTask(updatedTask);
+                            ref.read(taskProvider.notifier).updateTask(task);
                           }
 
-                          if (!mounted) return;
                           Navigator.pop(context, true);
                         }
                       },
@@ -241,27 +239,4 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
       ],
     );
   }
-}
-
-class TopDownPageRoute<T> extends PageRouteBuilder<T> {
-  final Widget child;
-
-  TopDownPageRoute({required this.child})
-    : super(
-        pageBuilder: (context, animation, secondaryAnimation) => child,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, -1.0); // Empieza desde arriba
-          const end = Offset.zero; // Termina en su posición final
-          const curve = Curves.easeOut;
-
-          final tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-          final offsetAnimation = animation.drive(tween);
-
-          return SlideTransition(position: offsetAnimation, child: child);
-        },
-        opaque: false,
-      );
 }

@@ -1,43 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:kiorapp/database/database_helper.dart';
-import 'package:kiorapp/models/task.dart';
-import 'package:kiorapp/screens/new_task_screen.dart';
-import 'package:kiorapp/screens/tags_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kiorapp/presentation/providers/task_provider.dart';
+import 'package:kiorapp/data/models/task.dart';
+import 'package:kiorapp/presentation/screens/new_task_screen.dart';
+import 'package:kiorapp/presentation/screens/tags_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => HomeScreenState();
-}
-
-class HomeScreenState extends State<HomeScreen> {
-  List<Task> _tasks = [];
-
-  @override
-  void initState() {
-    super.initState();
-    loadTasks();
-  }
-
-  Future<void> loadTasks() async {
-    final tasks = await DatabaseHelper().getTasks();
-    setState(() {
-      _tasks = tasks;
-    });
-  }
-
-  void _navigateToEditTask(Task task) async {
+  void _navigateToEditTask(
+    BuildContext context,
+    WidgetRef ref,
+    Task task,
+  ) async {
     final result = await Navigator.of(
       context,
-    ).push(TopDownPageRoute(child: NewTaskScreen(task: task)));
+    ).push(MaterialPageRoute(builder: (context) => NewTaskScreen(task: task)));
     if (result == true) {
-      loadTasks();
+      ref.read(taskProvider.notifier).loadTasks();
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasks = ref.watch(taskProvider);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -48,7 +35,7 @@ class HomeScreenState extends State<HomeScreen> {
               'Task',
               style: TextStyle(color: Theme.of(context).primaryColor),
             ),
-            if (_tasks.isNotEmpty)
+            if (tasks.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.all(6),
@@ -57,7 +44,7 @@ class HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Text(
-                  '${_tasks.length}',
+                  '${tasks.length}',
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
@@ -76,21 +63,18 @@ class HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: ListView.builder(
-        itemCount: _tasks.length,
+        itemCount: tasks.length,
         itemBuilder: (context, index) {
-          final task = _tasks[index];
+          final task = tasks[index];
           return Dismissible(
             key: ValueKey(task.id),
             direction: DismissDirection.horizontal,
             onDismissed: (direction) async {
               if (direction == DismissDirection.startToEnd) {
                 if (task.id != null) {
-                  await DatabaseHelper().deleteTask(task.id!);
+                  ref.read(taskProvider.notifier).deleteTask(task.id!);
                 }
-                setState(() {
-                  _tasks.removeWhere((t) => t.id == task.id);
-                });
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Task "${task.name}" deleted')),
                   );
@@ -121,18 +105,16 @@ class HomeScreenState extends State<HomeScreen> {
                   },
                 );
               } else {
-                // direction == DismissDirection.endToStart (Complete/Uncomplete)
                 final bool isCompleted = task.isCompleted;
-                final confirm = await _showCompleteConfirmDialog(isCompleted);
+                final confirm = await _showCompleteConfirmDialog(
+                  context,
+                  isCompleted,
+                );
 
                 if (confirm == true) {
                   final updatedTask = task.copyWith(isCompleted: !isCompleted);
-                  await DatabaseHelper().updateTask(updatedTask);
-                  setState(() {
-                    _tasks[index] = updatedTask;
-                  });
+                  ref.read(taskProvider.notifier).updateTask(updatedTask);
                 }
-                // No descartar el item, solo actualizarlo.
                 return false;
               }
             },
@@ -157,14 +139,14 @@ class HomeScreenState extends State<HomeScreen> {
                 child: Card(
                   elevation: 4.0,
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  shadowColor: Colors.black.withOpacity(0.2),
+                  shadowColor: Colors.black.withAlpha((255 * 0.2).round()),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15.0),
                   ),
                   color: task.isCompleted ? Colors.grey[300] : Colors.white,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15.0),
-                    onTap: () => _navigateToEditTask(task),
+                    onTap: () => _navigateToEditTask(context, ref, task),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -196,28 +178,6 @@ class HomeScreenState extends State<HomeScreen> {
                                   : TextDecoration.none,
                             ),
                           ),
-                          if (task.label != null) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                task.label!,
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -228,10 +188,32 @@ class HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Tasks'),
+          BottomNavigationBarItem(icon: Icon(Icons.add), label: 'New Task'),
+        ],
+        currentIndex: 0,
+        onTap: (index) async {
+          if (index == 1) {
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const NewTaskScreen()),
+            );
+            if (result == true) {
+              ref.read(taskProvider.notifier).loadTasks();
+            }
+          }
+        },
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+      ),
     );
   }
 
-  Future<bool?> _showCompleteConfirmDialog(bool isCompleted) {
+  Future<bool?> _showCompleteConfirmDialog(
+    BuildContext context,
+    bool isCompleted,
+  ) {
     return showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
