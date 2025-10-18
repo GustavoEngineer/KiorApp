@@ -6,7 +6,8 @@ import 'package:kiorapp/presentation/providers/tag_provider.dart';
 
 class NewTaskScreen extends ConsumerStatefulWidget {
   final Task? task;
-  const NewTaskScreen({super.key, this.task});
+  final DateTime? selectedDate;
+  const NewTaskScreen({super.key, this.task, this.selectedDate});
 
   @override
   ConsumerState<NewTaskScreen> createState() => _NewTaskScreenState();
@@ -29,6 +30,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       _dueDate = widget.task!.dueDate;
       _estimatedTimeController.text =
           widget.task!.estimatedTime?.toString() ?? '';
+    } else if (widget.selectedDate != null) {
+      _dueDate = widget.selectedDate;
     }
   }
 
@@ -40,170 +43,248 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     super.dispose();
   }
 
+  void _saveTask() {
+    if (_formKey.currentState!.validate()) {
+      final estimatedTime = double.tryParse(_estimatedTimeController.text);
+      final task = Task(
+        id: widget.task?.id,
+        name: _taskNameController.text,
+        description: _descriptionController.text,
+        dueDate: _dueDate,
+        estimatedTime: estimatedTime,
+      );
+      if (widget.task == null) {
+        ref.read(taskProvider.notifier).addTask(task);
+      } else {
+        ref.read(taskProvider.notifier).updateTask(task);
+      }
+
+      Navigator.pop(context, true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tags = ref.watch(tagProvider);
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Container(
-            padding: const EdgeInsets.all(24.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 10.0,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _taskNameController,
-                            decoration: const InputDecoration(
-                              hintText: 'New Task',
-                              border: InputBorder.none,
-                              fillColor: Colors.white,
-                              filled: true,
+      appBar: AppBar(
+        title: Text(widget.task == null ? 'Create New Task' : 'Edit Task'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Task Name', style: textTheme.bodySmall),
+                      TextFormField(
+                        controller: _taskNameController,
+                        decoration: InputDecoration(
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor,
                             ),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor,
+                              width: 2.0,
                             ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter a task name';
-                              }
-                              return null;
-                            },
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: InputBorder.none,
-                        fillColor: Colors.white,
-                        filled: true,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _estimatedTimeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Tiempo estimado (horas)',
-                        border: InputBorder.none,
-                        fillColor: Colors.white,
-                        filled: true,
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 24),
-                    _buildInfoRow(
-                      icon: Icons.calendar_today,
-                      title: 'Time',
-                      valueWidget: GestureDetector(
-                        onTap: () async {
-                          final now = DateTime.now();
-                          final today = DateTime(now.year, now.month, now.day);
-
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: (_dueDate ?? today).isBefore(today)
-                                ? today
-                                : (_dueDate ?? today),
-                            firstDate: today,
-                            lastDate: DateTime(2101),
-                            initialEntryMode: DatePickerEntryMode.input,
-                          );
-                          if (picked != null && picked != _dueDate) {
-                            setState(() {
-                              _dueDate = picked;
-                            });
+                        style: textTheme.headlineSmall,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a task name';
                           }
+                          return null;
                         },
-                        child: Text(
-                          _dueDate == null
-                              ? 'Select date'
-                              : _dueDate!.toLocal().toString().split(' ')[0],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Description', style: textTheme.bodySmall),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Theme.of(context).primaryColor,
+                              width: 2.0,
+                            ),
+                          ),
+                        ),
+                        minLines: 1,
+                        maxLines: 5,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Select Category', style: textTheme.bodySmall),
+                      const SizedBox(height: 8),
+                      if (tags.isEmpty)
+                        Text('no categories', style: textTheme.bodyLarge)
+                      else
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: tags.map((tag) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: ChoiceChip(
+                                  label: Text(tag.name),
+                                  labelStyle: TextStyle(
+                                    color: _selectedTagId == tag.id
+                                        ? Colors.white
+                                        : textTheme.bodyLarge?.color,
+                                  ),
+                                  selected: _selectedTagId == tag.id,
+                                  selectedColor: Theme.of(context).primaryColor,
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    side: BorderSide(
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                  ),
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _selectedTagId = selected ? tag.id : null;
+                                    });
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Date', style: textTheme.bodySmall),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.5,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 1.0,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _dueDate?.toLocal().toString().split(
+                                        ' ',
+                                      )[0] ??
+                                      '',
+                                  style: textTheme.bodyLarge,
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.calendar_today,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                                onPressed: () async {
+                                  final now = DateTime.now();
+                                  final today = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                  );
+                                  final DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate:
+                                        (_dueDate ?? today).isBefore(today)
+                                        ? today
+                                        : (_dueDate ?? today),
+                                    firstDate: today,
+                                    lastDate: DateTime(2101),
+                                    initialEntryMode: DatePickerEntryMode.input,
+                                  );
+                                  if (picked != null && picked != _dueDate) {
+                                    setState(() {
+                                      _dueDate = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                    _buildInfoRow(
-                      icon: Icons.label_outline,
-                      title: 'Label',
-                      valueWidget: DropdownButton<int>(
-                        value: _selectedTagId,
-                        hint: const Text('Select'),
-                        underline: const SizedBox.shrink(),
-                        onChanged: (int? newValue) {
-                          setState(() {
-                            _selectedTagId = newValue;
-                          });
-                        },
-                        items: tags.map((tag) {
-                          return DropdownMenuItem<int>(
-                            value: tag.id,
-                            child: Text(tag.name),
-                          );
-                        }).toList(),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('working hours', style: textTheme.bodySmall),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.5,
+                            child: TextFormField(
+                              controller: _estimatedTimeController,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Theme.of(context).primaryColor,
+                                    width: 2.0,
+                                  ),
+                                ),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    onPressed: _saveTask,
+                    child: Text(
+                      widget.task == null ? 'Create Task' : 'Update Task',
                     ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          final estimatedTime = double.tryParse(
-                            _estimatedTimeController.text,
-                          );
-                          final task = Task(
-                            id: widget.task?.id,
-                            name: _taskNameController.text,
-                            description: _descriptionController.text,
-                            dueDate: _dueDate,
-                            estimatedTime: estimatedTime,
-                          );
-                          if (widget.task == null) {
-                            ref.read(taskProvider.notifier).addTask(task);
-                          } else {
-                            ref.read(taskProvider.notifier).updateTask(task);
-                          }
-
-                          Navigator.pop(context, true);
-                        }
-                      },
-                      child: const Text('Save Task'),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -218,20 +299,17 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     required Widget valueWidget,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(title, style: Theme.of(context).textTheme.bodySmall),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.grey.shade600),
+              Icon(icon, color: Theme.of(context).textTheme.bodySmall?.color),
               const SizedBox(width: 16),
-              Text(
-                title,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 16),
-              ),
-              const Spacer(),
-              valueWidget,
+              Expanded(child: valueWidget),
             ],
           ),
         ),

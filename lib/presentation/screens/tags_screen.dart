@@ -10,6 +10,7 @@ class TagsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tags = ref.watch(tagProvider);
     final tagNameController = TextEditingController();
+    final textTheme = Theme.of(context).textTheme;
 
     void showTagDialog({Tag? tag}) {
       final isEditing = tag != null;
@@ -18,7 +19,11 @@ class TagsScreen extends ConsumerWidget {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(isEditing ? 'Edit Tag' : 'New Tag'),
+          shape: Theme.of(context).cardTheme.shape,
+          title: Text(
+            isEditing ? 'Edit Tag' : 'New Tag',
+            style: textTheme.titleLarge,
+          ),
           content: TextField(
             controller: tagNameController,
             decoration: const InputDecoration(labelText: 'Tag Name'),
@@ -54,32 +59,35 @@ class TagsScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tags')),
-      body: ListView.builder(
-        itemCount: tags.length,
-        itemBuilder: (context, index) {
-          final tag = tags[index];
-          return Dismissible(
-            key: ValueKey(tag.id),
-            direction: DismissDirection.endToStart,
-            onDismissed: (direction) {
-              ref.read(tagProvider.notifier).deleteTag(tag.id!);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('${tag.name} deleted')));
-            },
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            child: ListTile(
-              title: Text(tag.name),
-              onTap: () => showTagDialog(tag: tag),
-            ),
-          );
-        },
+      appBar: AppBar(title: Text('Categories', style: textTheme.headlineSmall)),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Wrap(
+            spacing: 8.0,
+            runSpacing: 8.0,
+            children: tags.map((tag) {
+              return GestureDetector(
+                onTap: () => showTagDialog(tag: tag),
+                child: Chip(
+                  label: Text(tag.name, style: textTheme.bodyLarge),
+                  onDeleted: () {
+                    ref.read(tagProvider.notifier).deleteTag(tag.id!);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Category "${tag.name}" deleted')),
+                    );
+                  },
+                  deleteIcon: const Icon(Icons.close, size: 18),
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Theme.of(context).primaryColor),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  backgroundColor: Colors.white,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showTagDialog(),
