@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kiorapp/presentation/providers/task_provider.dart';
 import 'package:kiorapp/data/models/task.dart';
 import 'package:kiorapp/presentation/screens/new_task_screen.dart';
 import 'package:kiorapp/presentation/screens/tags_screen.dart';
-import 'package:kiorapp/presentation/widgets/horizontal_date_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:kiorapp/presentation/widgets/date_carousel_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -15,14 +15,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  DateTime _selectedDate = () {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }();
-
-  final GlobalKey<HorizontalDatePickerState> _datePickerKey =
-      GlobalKey<HorizontalDatePickerState>();
-  bool _showGoToTodayButton = false;
+  final GlobalKey<DateCarouselWidgetState> _carouselKey =
+      GlobalKey<DateCarouselWidgetState>();
+  DateTime _selectedDate = DateTime.now();
 
   void _navigateToEditTask(
     BuildContext context,
@@ -37,50 +32,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _onDateSelected(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final newDate = DateTime(date.year, date.month, date.day);
-
-    setState(() {
-      _selectedDate = newDate;
-      _showGoToTodayButton = newDate != today;
-    });
-  }
-
-  bool _isTodaySelected() {
-    final now = DateTime.now();
-    return _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-  }
-
   @override
   Widget build(BuildContext context) {
     final allTasks = ref.watch(taskProvider);
     final textTheme = Theme.of(context).textTheme;
     final cardTheme = Theme.of(context).cardTheme;
 
-    final tasks = allTasks.where((task) {
-      if (task.dueDate == null) {
-        // Show tasks without a due date only on the current day if they are not completed
-        final now = DateTime.now();
-        return !task.isCompleted &&
-            _selectedDate.year == now.year &&
-            _selectedDate.month == now.month &&
-            _selectedDate.day == now.day;
-      }
-      return task.dueDate!.year == _selectedDate.year &&
-          task.dueDate!.month == _selectedDate.month &&
-          task.dueDate!.day == _selectedDate.day;
-    }).toList();
+    // Muestra todas las tareas no completadas
+    final tasks = allTasks.where((task) => !task.isCompleted).toList();
 
     final today = DateTime.now();
 
     return Scaffold(
       appBar: AppBar(
+        title: const Text(''),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: Icon(Icons.today, color: Theme.of(context).primaryColor),
+            onPressed: () {
+              _carouselKey.currentState?.jumpToToday();
+            },
+          ),
           IconButton(
             icon: Icon(
               Icons.local_offer,
@@ -96,21 +69,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-            child: Text(
-              DateFormat.MMMM('es_ES').format(_selectedDate).toUpperCase(),
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          HorizontalDatePicker(
-            key: _datePickerKey,
-            selectedDate: _selectedDate,
-            onDateSelected: _onDateSelected,
-            initialDate: DateTime.now(),
+          DateCarouselWidget(
+            key: _carouselKey,
+            onDateSelected: (date) {
+              setState(() {
+                _selectedDate = date;
+              });
+            },
           ),
           Expanded(
             child: ListView.builder(
@@ -251,38 +216,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          if (!_isTodaySelected()) ...[
-            SizedBox(
-              height: 40,
-              width: 40,
-              child: FloatingActionButton(
-                heroTag: 'goToToday',
-                onPressed: () {
-                  final today = DateTime.now();
-                  _onDateSelected(today);
-                  _datePickerKey.currentState!.scrollToDate(today);
-                },
-                child: const Icon(Icons.today, size: 20),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-          FloatingActionButton(
-            heroTag: 'addTask',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) =>
-                      NewTaskScreen(selectedDate: _selectedDate),
-                ),
-              );
-            },
-            child: const Icon(Icons.add),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'addTask',
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const NewTaskScreen()),
+          );
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
