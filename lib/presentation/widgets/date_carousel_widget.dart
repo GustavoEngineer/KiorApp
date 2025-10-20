@@ -3,8 +3,13 @@ import 'package:intl/intl.dart';
 
 class DateCarouselWidget extends StatefulWidget {
   final ValueChanged<DateTime> onDateSelected;
+  final ValueChanged<DateTime> onMonthChanged;
 
-  const DateCarouselWidget({super.key, required this.onDateSelected});
+  const DateCarouselWidget({
+    super.key,
+    required this.onDateSelected,
+    required this.onMonthChanged,
+  });
 
   @override
   State<DateCarouselWidget> createState() => DateCarouselWidgetState();
@@ -13,7 +18,6 @@ class DateCarouselWidget extends StatefulWidget {
 class DateCarouselWidgetState extends State<DateCarouselWidget> {
   late final PageController _pageController;
   late DateTime _selectedDate;
-  late final ValueNotifier<DateTime> _displayedMonthDateNotifier;
   final List<DateTime> _dates = [];
 
   @override
@@ -21,7 +25,6 @@ class DateCarouselWidgetState extends State<DateCarouselWidget> {
     super.initState();
     _selectedDate = DateTime.now();
     _generateDates();
-    _displayedMonthDateNotifier = ValueNotifier(_selectedDate);
     _pageController = PageController(
       initialPage: _dates.indexWhere(
         (date) => DateUtils.isSameDay(date, _selectedDate),
@@ -30,13 +33,13 @@ class DateCarouselWidgetState extends State<DateCarouselWidget> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onDateSelected(_selectedDate);
+      widget.onMonthChanged(_selectedDate);
     });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _displayedMonthDateNotifier.dispose();
     super.dispose();
   }
 
@@ -68,27 +71,67 @@ class DateCarouselWidgetState extends State<DateCarouselWidget> {
     }
   }
 
+  void jumpToPreviousMonth() {
+    final currentPage =
+        _pageController.page?.round() ??
+        _dates.indexWhere((d) => DateUtils.isSameDay(d, _selectedDate));
+    if (currentPage == -1) return;
+
+    final currentVisibleDate = _dates[currentPage];
+    final targetDate = DateTime(
+      currentVisibleDate.year,
+      currentVisibleDate.month - 1,
+      1,
+    );
+
+    final targetIndex = _dates.indexWhere(
+      (date) => date.year == targetDate.year && date.month == targetDate.month,
+    );
+
+    if (targetIndex != -1) {
+      _pageController.animateToPage(
+        targetIndex,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void jumpToNextMonth() {
+    final currentPage =
+        _pageController.page?.round() ??
+        _dates.indexWhere((d) => DateUtils.isSameDay(d, _selectedDate));
+    if (currentPage == -1) return;
+
+    final currentVisibleDate = _dates[currentPage];
+    final targetDate = DateTime(
+      currentVisibleDate.year,
+      currentVisibleDate.month + 1,
+      1,
+    );
+    final targetIndex = _dates.indexWhere(
+      (date) => date.year == targetDate.year && date.month == targetDate.month,
+    );
+    if (targetIndex != -1) {
+      _pageController.animateToPage(
+        targetIndex,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
-        ValueListenableBuilder<DateTime>(
-          valueListenable: _displayedMonthDateNotifier,
-          builder: (context, displayedDate, child) {
-            return Text(
-              DateFormat('MMMM').format(displayedDate),
-              style: textTheme.headlineSmall,
-            );
-          },
-        ),
         SizedBox(
-          height: 80,
+          height: 90,
           child: PageView.builder(
             controller: _pageController,
             itemCount: _dates.length,
             onPageChanged: (index) {
-              _displayedMonthDateNotifier.value = _dates[index];
+              widget.onMonthChanged(_dates[index]);
             },
             itemBuilder: (context, index) {
               final date = _dates[index];
@@ -113,7 +156,7 @@ class DateCarouselWidgetState extends State<DateCarouselWidget> {
                     _selectedDate = date;
                   });
                   widget.onDateSelected(date);
-                  _displayedMonthDateNotifier.value = date;
+                  widget.onMonthChanged(date);
                   _pageController.animateToPage(
                     index,
                     duration: const Duration(milliseconds: 300),

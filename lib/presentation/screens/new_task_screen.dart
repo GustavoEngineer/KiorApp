@@ -19,7 +19,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   final _descriptionController = TextEditingController();
   final _estimatedTimeController = TextEditingController();
   DateTime? _dueDate;
-  int? _selectedTagId;
+  List<int> _selectedTagIds = [];
 
   @override
   void initState() {
@@ -30,6 +30,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       _dueDate = widget.task!.dueDate;
       _estimatedTimeController.text =
           widget.task!.estimatedTime?.toString() ?? '';
+      _selectedTagIds = List<int>.from(widget.task!.tagIds);
     } else if (widget.selectedDate != null) {
       _dueDate = widget.selectedDate;
     }
@@ -52,6 +53,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
         description: _descriptionController.text,
         dueDate: _dueDate,
         estimatedTime: estimatedTime,
+        tagIds: _selectedTagIds,
       );
       if (widget.task == null) {
         ref.read(taskProvider.notifier).addTask(task);
@@ -157,23 +159,32 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                                 padding: const EdgeInsets.only(right: 8.0),
                                 child: ChoiceChip(
                                   label: Text(tag.name),
-                                  labelStyle: TextStyle(
-                                    color: _selectedTagId == tag.id
-                                        ? Colors.white
-                                        : textTheme.bodyLarge?.color,
-                                  ),
-                                  selected: _selectedTagId == tag.id,
+                                  labelStyle: _selectedTagIds.contains(tag.id)
+                                      ? TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        )
+                                      : textTheme.bodyLarge,
+                                  selected: _selectedTagIds.contains(tag.id),
                                   selectedColor: Theme.of(context).primaryColor,
                                   backgroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     side: BorderSide(
-                                      color: Theme.of(context).primaryColor,
+                                      color: _selectedTagIds.contains(tag.id)
+                                          ? Theme.of(context).primaryColor
+                                          : Theme.of(
+                                              context,
+                                            ).primaryColor.withOpacity(0.5),
                                     ),
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
                                   onSelected: (selected) {
                                     setState(() {
-                                      _selectedTagId = selected ? tag.id : null;
+                                      if (selected) {
+                                        _selectedTagIds.add(tag.id!);
+                                      } else {
+                                        _selectedTagIds.remove(tag.id);
+                                      }
                                     });
                                   },
                                 ),
