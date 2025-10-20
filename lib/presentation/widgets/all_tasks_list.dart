@@ -94,15 +94,8 @@ class AllTasksList extends ConsumerWidget {
                     }
                     return DismissibleTaskCard(task: task, showDate: false);
                   },
-                  separatorBuilder: (context, index) {
-                    final task = tasks[index];
-                    final nextTask = tasks[index + 1];
-                    // No mostrar el divisor si la siguiente tarea inicia una nueva sección de fecha
-                    if (!DateUtils.isSameDay(task.dueDate, nextTask.dueDate)) {
-                      return const SizedBox.shrink();
-                    }
-                    return const Divider(height: 1, indent: 20, endIndent: 20);
-                  },
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 0),
                 ),
         ),
       ],

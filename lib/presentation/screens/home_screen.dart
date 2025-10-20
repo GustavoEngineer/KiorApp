@@ -23,6 +23,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   DateTime _displayedMonth = DateTime.now();
   bool _isDailyViewSelected = true;
   bool _isFabExpanded = false;
+  int _selectedDailyCategory = 0; // 0: Tareas, 1: Hábitos, 2: Recordatorios
+
+  // Para la animación del delineado
+  final List<GlobalKey> _categoryKeys = [GlobalKey(), GlobalKey(), GlobalKey()];
+  double _underlineLeft = 0.0;
+  double _underlineWidth = 0.0;
+  final List<String> _categories = ['Tareas', 'Hábitos', 'Recordatorios'];
+  final List<IconData> _categoryIcons = [
+    Icons.checklist_rtl,
+    Icons.sync,
+    Icons.notifications_none,
+  ];
 
   void _navigateToEditTask(
     BuildContext context,
@@ -34,6 +46,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ).push(MaterialPageRoute(builder: (context) => NewTaskScreen(task: task)));
     if (result == true) {
       ref.read(taskProvider.notifier).loadTasks();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _updateUnderline(animate: false),
+    );
+  }
+
+  void _updateUnderline({bool animate = true}) {
+    if (_categoryKeys[_selectedDailyCategory].currentContext != null) {
+      final RenderBox renderBox =
+          _categoryKeys[_selectedDailyCategory].currentContext!
+                  .findRenderObject()
+              as RenderBox;
+      final newLeft = renderBox.localToGlobal(Offset.zero).dx;
+      final newWidth = renderBox.size.width;
+      // Obtenemos la posición del padre (el Stack) para calcular la posición relativa.
+      final parentRenderBox = context.findRenderObject() as RenderBox;
+      final parentOffset = parentRenderBox.localToGlobal(Offset.zero);
+
+      setState(() {
+        _underlineLeft = newLeft - parentOffset.dx;
+        _underlineWidth = newWidth;
+      });
     }
   }
 
@@ -247,12 +286,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _isFabExpanded = !_isFabExpanded;
                 });
               },
-              child: AnimatedIcon(
-                icon: AnimatedIcons.menu_close,
-                progress: _isFabExpanded
-                    ? const AlwaysStoppedAnimation<double>(1)
-                    : const AlwaysStoppedAnimation<double>(0),
-              ),
+              child: Icon(
+                _isFabExpanded ? Icons.close : Icons.add,
+              ), // Cambiado a un ícono de +/x
             ),
           ],
         ),
@@ -302,6 +338,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return task.dueDate != null &&
           DateUtils.isSameDay(task.dueDate, _selectedDate);
     }).toList();
+    final textTheme = Theme.of(context).textTheme;
 
     return Column(
       children: [
@@ -318,16 +355,114 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             });
           },
         ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              return DismissibleTaskCard(task: task);
-            },
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 40, 0, 16),
+          child: Stack(
+            children: [
+              // Línea gris de base que ocupa todo el ancho
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(height: 1, color: Colors.grey[300]),
+              ),
+              // Fila de categorías con su padding
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  children: List.generate(_categories.length, (index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index < _categories.length - 1 ? 24.0 : 0,
+                      ),
+                      child: _buildCategoryOption(
+                        _categories[index],
+                        _categoryIcons[index],
+                        index,
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              // Delineado azul animado
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                left: _underlineLeft,
+                bottom: 0,
+                child: Container(
+                  height: 2,
+                  width: _underlineWidth,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ],
           ),
         ),
+        Expanded(child: _buildDailyCategoryView(tasks)),
       ],
+    );
+  }
+
+  Widget _buildDailyCategoryView(List<Task> tasks) {
+    switch (_selectedDailyCategory) {
+      case 0: // Tareas
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 8), // Espacio sobre la lista
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            final task = tasks[index];
+            return DismissibleTaskCard(task: task);
+          },
+        );
+      case 1: // Hábitos
+        return const Center(child: Text('Próximamente: Hábitos'));
+      case 2: // Recordatorios
+        return const Center(child: Text('Próximamente: Recordatorios'));
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildCategoryOption(String title, IconData icon, int index) {
+    final textTheme = Theme.of(context).textTheme;
+    final isSelected = _selectedDailyCategory == index;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedDailyCategory = index);
+        _updateUnderline();
+      },
+      child: Container(
+        color: Colors
+            .transparent, // Para asegurar que el onTap funcione en toda el área
+        padding: const EdgeInsets.only(
+          bottom: 8.0,
+        ), // Espacio para el delineado
+        child: Row(
+          key: _categoryKeys[index],
+          children: [
+            Icon(
+              icon,
+              size: 20, // Tamaño del ícono reducido
+              color: isSelected
+                  ? Theme.of(context).primaryColor
+                  : textTheme.bodySmall?.color,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: textTheme.titleMedium?.copyWith(
+                // Estilo de texto más pequeño
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? Theme.of(context).primaryColor
+                    : textTheme.bodySmall?.color,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
