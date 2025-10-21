@@ -7,6 +7,7 @@ import 'package:kiorapp/presentation/providers/task_provider.dart';
 import 'package:kiorapp/presentation/screens/new_task_screen.dart';
 import 'package:kiorapp/presentation/screens/tags_screen.dart';
 import 'package:kiorapp/presentation/widgets/all_tasks_list.dart';
+import 'package:kiorapp/functions/full_calendar_view.dart';
 import 'package:kiorapp/presentation/widgets/date_carousel_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -76,6 +77,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  void _showCalendar() async {
+    final selectedDate = await showGeneralDialog<DateTime>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Cerrar',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.topCenter,
+          child: FullCalendarView(
+            selectedDate: _selectedDate,
+            focusedDate: _displayedMonth,
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position:
+              Tween<Offset>(
+                begin: const Offset(0, -0.1),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutQuint),
+              ),
+          child: child,
+        );
+      },
+    );
+
+    if (selectedDate != null) {
+      // Navega a la pantalla de nueva tarea con la fecha seleccionada
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => NewTaskScreen(selectedDate: selectedDate),
+        ),
+      );
+      // Si se guardó una tarea, recargamos la lista
+      if (result == true) {
+        ref.read(taskProvider.notifier).loadTasks();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final allTasks = ref.watch(taskProvider);
@@ -96,19 +141,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: _isDailyViewSelected
-            ? IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () {
-                  _carouselKey.currentState?.jumpToPreviousMonth();
-                },
-              )
-            : null,
         title: _isDailyViewSelected
             ? GestureDetector(
-                onTap: () {
-                  _carouselKey.currentState?.jumpToToday();
-                },
+                onTap: _showCalendar,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
@@ -135,17 +170,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               ),
         centerTitle: true,
-        actions: [
-          if (_isDailyViewSelected)
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () {
-                _carouselKey.currentState?.jumpToNextMonth();
-              },
-            )
-          else
-            const SizedBox(width: 48), // Placeholder to keep title centered
-        ],
       ),
       body: Column(
         children: [

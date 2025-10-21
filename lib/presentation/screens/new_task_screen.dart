@@ -81,7 +81,11 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16.0).copyWith(
+              bottom:
+                  MediaQuery.of(context).viewInsets.bottom +
+                  16.0, // Añade padding para el teclado
+            ),
             child: Form(
               key: _formKey,
               child: Column(

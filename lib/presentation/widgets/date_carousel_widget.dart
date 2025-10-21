@@ -16,186 +16,152 @@ class DateCarouselWidget extends StatefulWidget {
 }
 
 class DateCarouselWidgetState extends State<DateCarouselWidget> {
-  late final PageController _pageController;
-  late DateTime _selectedDate;
-  final List<DateTime> _dates = [];
+  DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
+  DateTime _currentWeekSunday = DateUtils.dateOnly(DateTime.now());
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime.now();
-    _generateDates();
-    _pageController = PageController(
-      initialPage: _dates.indexWhere(
-        (date) => DateUtils.isSameDay(date, _selectedDate),
-      ),
-      viewportFraction: 1 / 7,
-    );
+    _currentWeekSunday = _getSundayOfWeek(_selectedDate);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onDateSelected(_selectedDate);
       widget.onMonthChanged(_selectedDate);
     });
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
+  /// Devuelve el domingo de la semana que contiene la [date] dada.
+  DateTime _getSundayOfWeek(DateTime date) {
+    // En Dart, weekday es 1 para Lunes y 7 para Domingo.
+    // Hacemos `date.weekday % 7` para obtener un offset de 0 para Domingo.
+    return date.subtract(Duration(days: date.weekday % 7));
   }
 
-  void _generateDates() {
-    final today = DateTime.now();
-    // Generamos fechas para un año antes y un año después de hoy.
-    final startDate = DateTime(today.year - 1, today.month, today.day);
-    final endDate = DateTime(today.year + 1, today.month, today.day);
-    final days = endDate.difference(startDate).inDays;
-    for (int i = 0; i <= days; i++) {
-      _dates.add(startDate.add(Duration(days: i)));
-    }
+  /// Genera las 7 fechas para una página/semana específica.
+  List<DateTime> _getDatesForCurrentWeek() {
+    return List.generate(7, (i) => _currentWeekSunday.add(Duration(days: i)));
   }
 
   void jumpToToday() {
-    final today = DateTime.now();
-    final index = _dates.indexWhere(
-      (date) =>
-          date.year == today.year &&
-          date.month == today.month &&
-          date.day == today.day,
-    );
-    if (index != -1) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
+    // Selecciona el día de hoy
+    _onDateTapped(DateUtils.dateOnly(DateTime.now()));
+    setState(() {
+      _currentWeekSunday = _getSundayOfWeek(DateUtils.dateOnly(DateTime.now()));
+    });
   }
 
-  void jumpToPreviousMonth() {
-    final currentPage =
-        _pageController.page?.round() ??
-        _dates.indexWhere((d) => DateUtils.isSameDay(d, _selectedDate));
-    if (currentPage == -1) return;
-
-    final currentVisibleDate = _dates[currentPage];
-    final targetDate = DateTime(
-      currentVisibleDate.year,
-      currentVisibleDate.month - 1,
-      1,
-    );
-
-    final targetIndex = _dates.indexWhere(
-      (date) => date.year == targetDate.year && date.month == targetDate.month,
-    );
-
-    if (targetIndex != -1) {
-      _pageController.animateToPage(
-        targetIndex,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  void jumpToNextMonth() {
-    final currentPage =
-        _pageController.page?.round() ??
-        _dates.indexWhere((d) => DateUtils.isSameDay(d, _selectedDate));
-    if (currentPage == -1) return;
-
-    final currentVisibleDate = _dates[currentPage];
-    final targetDate = DateTime(
-      currentVisibleDate.year,
-      currentVisibleDate.month + 1,
-      1,
-    );
-    final targetIndex = _dates.indexWhere(
-      (date) => date.year == targetDate.year && date.month == targetDate.month,
-    );
-    if (targetIndex != -1) {
-      _pageController.animateToPage(
-        targetIndex,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
+  void _onDateTapped(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+    });
+    widget.onDateSelected(date);
+    widget.onMonthChanged(date);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 90,
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: _dates.length,
-            onPageChanged: (index) {
-              widget.onMonthChanged(_dates[index]);
-            },
-            itemBuilder: (context, index) {
-              final date = _dates[index];
-              final isSelected = DateUtils.isSameDay(date, _selectedDate);
-              final today = DateTime.now();
-              final isToday = DateUtils.isSameDay(date, today);
+    return SizedBox(
+      height: 90,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          ..._getDatesForCurrentWeek()
+              .map(
+                (date) => _DateCell(
+                  date: date,
+                  isSelected: DateUtils.isSameDay(date, _selectedDate),
+                  onTap: () => _onDateTapped(date),
+                ),
+              )
+              .toList(),
+        ],
+      ),
+    );
+  }
+}
 
-              final textColor = isSelected ? Colors.white : Colors.black;
+class _DateCell extends StatelessWidget {
+  final DateTime date;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-              Color? backgroundColor;
-              if (isSelected) {
-                backgroundColor = Theme.of(context).primaryColor;
-              } else if (isToday) {
-                backgroundColor = Colors.grey.shade300;
-              } else {
-                backgroundColor = Colors.transparent;
-              }
+  const _DateCell({
+    required this.date,
+    required this.isSelected,
+    required this.onTap,
+  });
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedDate = date;
-                  });
-                  widget.onDateSelected(date);
-                  widget.onMonthChanged(date);
-                  _pageController.animateToPage(
-                    index,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        DateFormat('EEE').format(date),
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        date.day.toString(),
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
+  @override
+  Widget build(BuildContext context) {
+    final isToday = DateUtils.isSameDay(date, DateTime.now());
+    final primaryColor = Theme.of(context).primaryColor;
+
+    const backgroundColor = Colors.transparent;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+        padding: const EdgeInsets.fromLTRB(8.0, 7.0, 8.0, 7.0),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              // Usamos 'es' para asegurar que tome el formato español.
+              DateFormat('EEE', 'es').format(date),
+              style: TextStyle(
+                color: isSelected ? primaryColor : Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          color: primaryColor,
+                          shape: BoxShape.circle,
+                        )
+                      : null,
+                  child: Text(
+                    date.day.toString(),
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
+                SizedBox(
+                  height: 9,
+                  child: isToday && !isSelected
+                      ? Column(
+                          children: [
+                            const SizedBox(height: 4),
+                            Container(
+                              height: 5,
+                              width: 5,
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
