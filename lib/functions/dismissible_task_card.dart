@@ -1,9 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kiorapp/data/models/task.dart';
+import 'package:kiorapp/presentation/providers/tag_provider.dart';
 import 'package:kiorapp/presentation/providers/task_provider.dart';
-import 'package:kiorapp/presentation/widgets/task_card.dart';
+import 'package:kiorapp/presentation/screens/new_task_screen.dart'
+    as task_screen;
 
 class DismissibleTaskCard extends ConsumerStatefulWidget {
   final Task task;
@@ -16,121 +18,285 @@ class DismissibleTaskCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DismissibleTaskCard> createState() => _DismissibleTaskCardState();
+  ConsumerState<DismissibleTaskCard> createState() =>
+      _DismissibleTaskCardState();
 }
 
+enum _DragDirection { left, right, none }
+
 class _DismissibleTaskCardState extends ConsumerState<DismissibleTaskCard> {
+  _DragDirection _dragDirection = _DragDirection.none;
+
+  void _navigateToEditTask(BuildContext context) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => task_screen.NewTaskScreen(task: widget.task),
+      ),
+    );
+    if (result == true) {
+      ref.read(taskProvider.notifier).loadTasks();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final cardTheme = Theme.of(context).cardTheme;
+    final primaryColor = Theme.of(context).primaryColor;
 
-    return Dismissible(
-      key: ValueKey(widget.task.id),
-      direction: DismissDirection.horizontal,
-      onDismissed: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          if (widget.task.id != null) {
-            ref.read(taskProvider.notifier).deleteTask(widget.task.id!);
+    final cardBorderRadius = _dragDirection == _DragDirection.right
+        ? const BorderRadius.only(
+            topRight: Radius.circular(12),
+            bottomRight: Radius.circular(12),
+            topLeft: Radius.zero,
+            bottomLeft: Radius.zero,
+          )
+        : _dragDirection == _DragDirection.left
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(12),
+            bottomLeft: Radius.circular(12),
+            topRight: Radius.zero,
+            bottomRight: Radius.zero,
+          )
+        : BorderRadius.circular(12);
+
+    final boxShadow = _dragDirection == _DragDirection.right
+        ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              spreadRadius: 0,
+              blurRadius: 10,
+              offset: const Offset(-4, 0), // Shadow on the left
+            ),
+          ]
+        : _dragDirection == _DragDirection.left
+        ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              spreadRadius: 0,
+              blurRadius: 10,
+              offset: const Offset(4, 0), // Shadow on the right
+            ),
+          ]
+        : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      child: Listener(
+        onPointerDown: (event) {
+          setState(() {
+            _dragDirection = _DragDirection.none;
+          });
+        },
+        onPointerMove: (event) {
+          if (_dragDirection == _DragDirection.none) {
+            if (event.delta.dx > 1) {
+              setState(() {
+                _dragDirection = _DragDirection.right;
+              });
+            } else if (event.delta.dx < -1) {
+              setState(() {
+                _dragDirection = _DragDirection.left;
+              });
+            }
           }
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Task "${widget.task.name}" deleted'),
-              ),
-            );
-          }
-        }
-      },
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          return await showDialog<bool>(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                shape: cardTheme.shape,
-                title: Text("Confirm", style: textTheme.titleLarge),
-                content: Text(
-                  "Are you sure you want to delete this task?",
-                  style: textTheme.bodyMedium,
+        },
+        onPointerUp: (event) {
+          setState(() {
+            _dragDirection = _DragDirection.none;
+          });
+        },
+        onPointerCancel: (event) {
+          setState(() {
+            _dragDirection = _DragDirection.none;
+          });
+        },
+        child: Dismissible(
+          key: ValueKey(widget.task.id),
+          direction: DismissDirection.horizontal,
+          onDismissed: (direction) {
+            if (direction == DismissDirection.startToEnd) {
+              ref.read(taskProvider.notifier).deleteTask(widget.task.id!);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Tarea "${widget.task.name}" eliminada'),
+                  action: SnackBarAction(
+                    label: 'Deshacer',
+                    onPressed: () {
+                      ref.read(taskProvider.notifier).loadTasks();
+                    },
+                  ),
                 ),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text("CANCEL"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text("DELETE"),
-                  ),
-                ],
               );
-            },
-          );
-        } else {
-          final bool isCompleted = widget.task.isCompleted;
-          final confirm = await _showCompleteConfirmDialog(
-            context,
-            isCompleted,
-          );
-
-          if (confirm == true) {
-            final updatedTask = widget.task.copyWith(
-              isCompleted: !isCompleted,
-            );
-            ref.read(taskProvider.notifier).updateTask(updatedTask);
-          }
-          return false;
-        }
-      },
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      secondaryBackground: Container(
-        color: widget.task.isCompleted ? Colors.orange : Colors.green,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: Icon(
-          widget.task.isCompleted ? Icons.undo : Icons.check_circle,
-          color: Colors.white,
+            }
+          },
+          background: Container(
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            alignment: Alignment.centerLeft,
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          secondaryBackground: Container(
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 22, 147, 248),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            alignment: Alignment.centerRight,
+            child: const Icon(Icons.edit, color: Colors.white),
+          ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.endToStart) {
+              _navigateToEditTask(context);
+              return false;
+            }
+            return true;
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              border: Border.all(
+                color: const Color.fromARGB(255, 230, 230, 230),
+                width: 1,
+              ),
+              borderRadius: cardBorderRadius,
+              boxShadow: boxShadow,
+            ),
+            child: ClipRRect(
+              borderRadius: cardBorderRadius,
+              child: Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  key: ValueKey(widget.task.id),
+                  collapsedBackgroundColor: primaryColor.withOpacity(0.1),
+                  backgroundColor: primaryColor.withOpacity(0.1),
+                  tilePadding: const EdgeInsets.symmetric(
+                    vertical: 0.0,
+                    horizontal: 12.0,
+                  ),
+                  trailing: const SizedBox.shrink(),
+                  title: Row(
+                    children: [
+                      Checkbox(
+                        value: widget.task.isCompleted,
+                        onChanged: (bool? value) {
+                          if (value != null) {
+                            ref
+                                .read(taskProvider.notifier)
+                                .updateTask(
+                                  widget.task.copyWith(isCompleted: value),
+                                );
+                          }
+                        },
+                        activeColor: primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.task.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleMedium?.copyWith(
+                            decoration: widget.task.isCompleted
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  children: <Widget>[
+                    Container(
+                      color: Colors.white.withOpacity(0.5),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 16.0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (widget.task.description != null &&
+                              widget.task.description!.isNotEmpty) ...[
+                            _buildDetailRow(
+                              context,
+                              'Descripción',
+                              widget.task.description!,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          if (widget.task.dueDate != null) ...[
+                            _buildDetailRow(
+                              context,
+                              'Vencimiento',
+                              DateFormat(
+                                'EEE, d MMM, yyyy',
+                                'es_ES',
+                              ).format(widget.task.dueDate!),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          if (widget.task.tagIds.isNotEmpty) ...[
+                            _buildTagsDetailRow(context),
+                            const SizedBox(height: 12),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-      child: TaskCard(task: widget.task, showDate: widget.showDate),
     );
   }
 
-  Future<bool?> _showCompleteConfirmDialog(
-    BuildContext context,
-    bool isCompleted,
-  ) {
-    return showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: Theme.of(context).cardTheme.shape,
-          title: Text(
-            isCompleted ? "Mark as Pending" : "Complete Task",
-            style: Theme.of(context).textTheme.titleLarge,
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
+    final textTheme = Theme.of(context).textTheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: textTheme.bodySmall?.copyWith(color: Colors.black54),
           ),
-          content: Text(
-            "Are you sure you want to mark this task as ${isCompleted ? 'pending' : 'completed'}?",
-            style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: textTheme.bodyMedium?.copyWith(
+              color: textTheme.titleLarge?.color,
+            ),
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text("CANCEL"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(isCompleted ? "MARK PENDING" : "COMPLETE"),
-            ),
-          ],
-        );
-      },
+        ),
+      ],
     );
+  }
+
+  Widget _buildTagsDetailRow(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final allTags = ref.watch(tagProvider);
+    final tagNames = widget.task.tagIds
+        .map((tagId) {
+          try {
+            return allTags.firstWhere((t) => t.id == tagId).name;
+          } catch (e) {
+            return null;
+          }
+        })
+        .where((name) => name != null);
+
+    return _buildDetailRow(context, 'Categorías', tagNames.join(', '));
   }
 }

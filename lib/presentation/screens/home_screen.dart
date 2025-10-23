@@ -2,13 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kiorapp/data/models/task.dart';
+import 'package:kiorapp/data/models/tag.dart';
 import 'package:kiorapp/functions/dismissible_task_card.dart';
+import 'package:kiorapp/presentation/providers/tag_provider.dart';
 import 'package:kiorapp/presentation/providers/task_provider.dart';
-import 'package:kiorapp/presentation/screens/new_task_screen.dart';
+import 'package:kiorapp/presentation/screens/new_task_screen.dart'
+    as new_task_screen;
 import 'package:kiorapp/presentation/screens/tags_screen.dart';
 import 'package:kiorapp/presentation/widgets/all_tasks_list.dart';
-import 'package:kiorapp/functions/full_calendar_view.dart';
+import 'package:kiorapp/functions/custom_calendar_picker.dart';
 import 'package:kiorapp/presentation/widgets/date_carousel_widget.dart';
+import 'package:kiorapp/presentation/widgets/tag_chip.dart';
+
+// Estado para los filtros
+class FilterState {
+  final int? tagId;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  FilterState({this.tagId, this.startDate, this.endDate});
+
+  FilterState copyWith({
+    int? tagId,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool clearStartDate = false,
+    bool clearEndDate = false,
+  }) {
+    return FilterState(
+      tagId: tagId ?? this.tagId,
+      startDate: clearStartDate ? null : startDate ?? this.startDate,
+      endDate: clearEndDate ? null : endDate ?? this.endDate,
+    );
+  }
+}
+
+final filterProvider = StateProvider<FilterState>((ref) => FilterState());
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -37,19 +66,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Icons.notifications_none,
   ];
 
-  void _navigateToEditTask(
-    BuildContext context,
-    WidgetRef ref,
-    Task task,
-  ) async {
-    final result = await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => NewTaskScreen(task: task)));
-    if (result == true) {
-      ref.read(taskProvider.notifier).loadTasks();
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -77,61 +93,215 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _showCalendar() async {
-    final selectedDate = await showGeneralDialog<DateTime>(
+  void _showFilterSheet() {
+    final allTags = ref.read(tagProvider);
+
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Cerrar',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Align(
-          alignment: Alignment.topCenter,
-          child: FullCalendarView(
-            selectedDate: _selectedDate,
-            focusedDate: _displayedMonth,
-          ),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return SlideTransition(
-          position:
-              Tween<Offset>(
-                begin: const Offset(0, -0.1),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutQuint),
-              ),
-          child: child,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.7,
+              maxChildSize: 0.95,
+              builder: (_, scrollController) {
+                // Leemos el estado del filtro aquí para que se actualice en cada rebuild
+                final currentFilters = ref.watch(filterProvider);
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Filtros',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              ref.read(filterProvider.notifier).state =
+                                  FilterState();
+                              setState(() {}); // Actualiza la UI del modal
+                            },
+                            child: const Text('Limpiar'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Categorías',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: allTags.map((tag) {
+                          return TagChip(
+                            tag: tag,
+                            isSelected: currentFilters.tagId == tag.id,
+                            onSelected: (isSelected) {
+                              final notifier = ref.read(
+                                filterProvider.notifier,
+                              );
+                              setState(() {
+                                if (notifier.state.tagId == tag.id) {
+                                  notifier.state = notifier.state.copyWith(
+                                    tagId: null,
+                                  );
+                                } else {
+                                  notifier.state = notifier.state.copyWith(
+                                    tagId: tag.id,
+                                  );
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Fecha',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDateFilterChip(
+                              context: context,
+                              label: 'Desde',
+                              date: ref.watch(filterProvider).startDate,
+                              onTap: () async {
+                                await showCalendarForFilter(
+                                  context: context,
+                                  ref: ref,
+                                  isStartDate: true,
+                                );
+                                setState(() {});
+                              },
+                              onClear: () {
+                                ref.read(filterProvider.notifier).state = ref
+                                    .read(filterProvider.notifier)
+                                    .state
+                                    .copyWith(clearStartDate: true);
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDateFilterChip(
+                              context: context,
+                              label: 'Hasta',
+                              date: ref.watch(filterProvider).endDate,
+                              onTap: () async {
+                                await showCalendarForFilter(
+                                  context: context,
+                                  ref: ref,
+                                  isStartDate: false,
+                                );
+                                setState(() {});
+                              },
+                              onClear: () {
+                                ref.read(filterProvider.notifier).state = ref
+                                    .read(filterProvider.notifier)
+                                    .state
+                                    .copyWith(clearEndDate: true);
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Aplicar Filtros'),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
+  }
 
-    if (selectedDate != null) {
-      // Navega a la pantalla de nueva tarea con la fecha seleccionada
-      final result = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (context) => NewTaskScreen(selectedDate: selectedDate),
+  Widget _buildDateFilterChip({
+    required BuildContext context,
+    required String label,
+    required DateTime? date,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    final hasValue = date != null;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
         ),
-      );
-      // Si se guardó una tarea, recargamos la lista
-      if (result == true) {
-        ref.read(taskProvider.notifier).loadTasks();
-      }
-    }
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    hasValue
+                        ? DateFormat('d MMM yyyy', 'es_ES').format(date)
+                        : 'Seleccionar',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: hasValue ? Colors.black : Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (hasValue)
+              InkWell(
+                onTap: onClear,
+                child: const Icon(Icons.close, size: 18, color: Colors.black54),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final allTasks = ref.watch(taskProvider);
-    final selectedTag = ref.watch(selectedTagProvider);
+    final filters = ref.watch(filterProvider);
     final textTheme = Theme.of(context).textTheme;
 
-    final filteredTasks = selectedTag == null
-        ? allTasks
-        : allTasks.where((task) => task.tagIds.contains(selectedTag)).toList();
+    final filteredAndSortedTasks = _getFilteredAndSortedTasks(
+      allTasks,
+      filters,
+    );
 
-    final sortedTasks = List<Task>.from(filteredTasks)
+    final sortedTasks = List<Task>.from(filteredAndSortedTasks)
       ..sort((a, b) {
         if (a.dueDate == null && b.dueDate == null) return 0;
         if (a.dueDate == null) return 1;
@@ -142,34 +312,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: _isDailyViewSelected
-            ? GestureDetector(
-                onTap: _showCalendar,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: textTheme.titleLarge?.fontSize,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MMMM, yyyy', 'es_ES').format(_displayedMonth),
-                      style: textTheme.titleLarge,
-                    ),
-                  ],
-                ),
-              )
-            : Row(
+            ? Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Tareas', style: textTheme.titleLarge),
-                  const SizedBox(width: 8),
-                  Text('(${sortedTasks.length})', style: textTheme.titleLarge),
+                  GestureDetector(
+                    onTap: () {
+                      showCalendarAndCreateTask(
+                        context: context,
+                        ref: ref,
+                        initialDate: _displayedMonth,
+                        focusedDate: _displayedMonth,
+                      );
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: textTheme.titleLarge?.fontSize,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat(
+                            'MMMM, yyyy',
+                            'es_ES',
+                          ).format(_displayedMonth),
+                          style: textTheme.titleLarge,
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
+              )
+            : null, // Se quita el título para la vista "Ver todo"
         centerTitle: true,
+        actions: _isDailyViewSelected
+            ? null
+            : [
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showFilterSheet,
+                ),
+              ],
       ),
       body: Column(
         children: [
@@ -205,7 +389,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             borderRadius: BorderRadius.circular(24.0),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withAlpha(25),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -250,6 +434,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  List<Task> _getFilteredAndSortedTasks(List<Task> tasks, FilterState filters) {
+    List<Task> filtered = List.from(tasks);
+
+    // Filtrar por tag
+    if (filters.tagId != null) {
+      filtered = filtered
+          .where((task) => task.tagIds.contains(filters.tagId))
+          .toList();
+    }
+
+    // Filtrar por fecha
+    if (filters.startDate != null) {
+      filtered = filtered.where((task) {
+        if (task.dueDate == null) return false;
+        final taskDate = DateUtils.dateOnly(task.dueDate!);
+        final startDate = DateUtils.dateOnly(filters.startDate!);
+        // Si hay fecha de fin, es un rango. Si no, es un día específico.
+        if (filters.endDate != null) {
+          final endDate = DateUtils.dateOnly(filters.endDate!);
+          return (taskDate.isAfter(startDate) ||
+                  taskDate.isAtSameMomentAs(startDate)) &&
+              (taskDate.isBefore(endDate) ||
+                  taskDate.isAtSameMomentAs(endDate));
+        } else {
+          return taskDate.isAtSameMomentAs(startDate);
+        }
+      }).toList();
+    }
+    return filtered;
+  }
+
   Widget _buildFabMenu(BuildContext context) {
     return Stack(
       alignment: Alignment.bottomRight,
@@ -271,8 +486,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onPressed: () async {
                   setState(() => _isFabExpanded = false);
                   await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => NewTaskScreen(
+                    MaterialPageRoute<bool>(
+                      builder: (context) => new_task_screen.NewTaskScreen(
                         selectedDate: _isDailyViewSelected
                             ? _selectedDate
                             : null,
@@ -362,7 +577,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return task.dueDate != null &&
           DateUtils.isSameDay(task.dueDate, _selectedDate);
     }).toList();
-    final textTheme = Theme.of(context).textTheme;
 
     return Column(
       children: [

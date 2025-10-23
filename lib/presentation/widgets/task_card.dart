@@ -5,7 +5,8 @@ import 'package:kiorapp/data/models/tag.dart';
 import 'package:kiorapp/data/models/task.dart';
 import 'package:kiorapp/presentation/providers/tag_provider.dart';
 import 'package:kiorapp/presentation/providers/task_provider.dart';
-import 'package:kiorapp/presentation/screens/new_task_screen.dart';
+import 'package:kiorapp/presentation/screens/new_task_screen.dart'
+    as new_task_screen;
 
 class TaskCard extends ConsumerStatefulWidget {
   final Task task;
@@ -21,9 +22,14 @@ class _TaskCardState extends ConsumerState<TaskCard> {
   bool _isExpanded = false;
 
   void _navigateToEditTask(BuildContext context, Task task) async {
-    final result = await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => NewTaskScreen(task: task)));
+    final result =
+        await Navigator.of(
+          context, // No need to use root navigator
+        ).push(
+          MaterialPageRoute(
+            builder: (context) => new_task_screen.NewTaskScreen(task: task),
+          ),
+        );
     if (result == true) {
       ref
           .read(taskProvider.notifier)
@@ -35,7 +41,6 @@ class _TaskCardState extends ConsumerState<TaskCard> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final cardTheme = Theme.of(context).cardTheme;
-    final today = DateTime.now();
     final allTags = ref.watch(tagProvider); // ref is available in ConsumerState
 
     return Padding(
@@ -106,9 +111,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         );
                       }).toList(),
                     )
-                  : const SizedBox(
-                      height: 16, // Altura mínima para mantener la consistencia
-                    ),
+                  : const SizedBox(height: 16),
             ),
             trailing: AnimatedRotation(
               turns: _isExpanded ? 0.5 : 0,
@@ -128,27 +131,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.task.description != null &&
-                          widget.task.description!.isNotEmpty) ...[
-                        _buildDetailRow(
-                          context,
-                          'Descripción',
-                          widget.task.description!,
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (widget.task.dueDate != null) ...[
-                        _buildDetailRow(
-                          context,
-                          'Vencimiento',
-                          DateFormat(
-                            'EEE, d MMM, yyyy',
-                            'es_ES',
-                          ).format(widget.task.dueDate!),
-                        ),
-                      ],
-                    ],
+                    children: _buildDetailRows(context),
                   ),
                 ),
               ),
@@ -157,6 +140,30 @@ class _TaskCardState extends ConsumerState<TaskCard> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildDetailRows(BuildContext context) {
+    final List<Widget> details = [];
+
+    if (widget.task.description != null &&
+        widget.task.description!.isNotEmpty) {
+      details.add(
+        _buildDetailRow(context, 'Descripción', widget.task.description!),
+      );
+      details.add(const SizedBox(height: 12));
+    }
+
+    if (widget.task.dueDate != null) {
+      details.add(
+        _buildDetailRow(
+          context,
+          'Vencimiento',
+          DateFormat('EEE, d MMM, yyyy', 'es_ES').format(widget.task.dueDate!),
+        ),
+      );
+    }
+
+    return details;
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value) {

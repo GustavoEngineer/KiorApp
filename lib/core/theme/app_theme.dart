@@ -57,7 +57,7 @@ ThemeData get baseTheme {
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: kScaffoldBackgroundColor.withOpacity(0.5),
+        fillColor: kScaffoldBackgroundColor.withAlpha(128),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(

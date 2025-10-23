@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiorapp/data/models/task.dart';
 import 'package:kiorapp/presentation/providers/task_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:kiorapp/presentation/providers/tag_provider.dart';
+import 'package:kiorapp/functions/custom_calendar_picker.dart';
 
 class NewTaskScreen extends ConsumerStatefulWidget {
   final Task? task;
@@ -31,7 +33,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       _estimatedTimeController.text =
           widget.task!.estimatedTime?.toString() ?? '';
       _selectedTagIds = List<int>.from(widget.task!.tagIds);
-    } else if (widget.selectedDate != null) {
+    } else {
+      // Para una nueva tarea, siempre usamos la fecha que se pasa al constructor.
       _dueDate = widget.selectedDate;
     }
   }
@@ -80,14 +83,10 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0).copyWith(
-              bottom:
-                  MediaQuery.of(context).viewInsets.bottom +
-                  16.0, // Añade padding para el teclado
-            ),
-            child: Form(
-              key: _formKey,
+          child: Form(
+            key: _formKey,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -203,6 +202,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Date', style: textTheme.bodySmall),
+                      const SizedBox(height: 8),
                       SizedBox(
                         width: MediaQuery.of(context).size.width * 0.5,
                         child: Container(
@@ -218,10 +218,12 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  _dueDate?.toLocal().toString().split(
-                                        ' ',
-                                      )[0] ??
-                                      '',
+                                  _dueDate != null
+                                      ? DateFormat(
+                                          'd MMM yyyy',
+                                          'es_ES',
+                                        ).format(_dueDate!)
+                                      : 'Sin fecha',
                                   style: textTheme.bodyLarge,
                                 ),
                               ),
@@ -231,21 +233,11 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                                   color: Theme.of(context).primaryColor,
                                 ),
                                 onPressed: () async {
-                                  final now = DateTime.now();
-                                  final today = DateTime(
-                                    now.year,
-                                    now.month,
-                                    now.day,
-                                  );
-                                  final DateTime? picked = await showDatePicker(
+                                  final picked = await showCustomCalendarPicker(
                                     context: context,
-                                    initialDate:
-                                        (_dueDate ?? today).isBefore(today)
-                                        ? today
-                                        : (_dueDate ?? today),
-                                    firstDate: today,
-                                    lastDate: DateTime(2101),
-                                    initialEntryMode: DatePickerEntryMode.input,
+                                    initialDate: _dueDate ?? DateTime.now(),
+                                    focusedDate: _dueDate ?? DateTime.now(),
+                                    allowPastDates: false,
                                   );
                                   if (picked != null && picked != _dueDate) {
                                     setState(() {
@@ -257,38 +249,6 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('working hours', style: textTheme.bodySmall),
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.5,
-                            child: TextFormField(
-                              controller: _estimatedTimeController,
-                              decoration: InputDecoration(
-                                isDense: true,
-                                enabledBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(
-                                    color: Theme.of(context).primaryColor,
-                                    width: 2.0,
-                                  ),
-                                ),
-                              ),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -305,31 +265,6 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String title,
-    required Widget valueWidget,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.bodySmall),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(icon, color: Theme.of(context).textTheme.bodySmall?.color),
-              const SizedBox(width: 16),
-              Expanded(child: valueWidget),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
     );
   }
 }

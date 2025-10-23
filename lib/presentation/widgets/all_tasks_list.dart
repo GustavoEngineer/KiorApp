@@ -3,10 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kiorapp/data/models/task.dart';
 import 'package:kiorapp/functions/dismissible_task_card.dart';
-import 'package:kiorapp/presentation/providers/tag_provider.dart';
-import 'package:kiorapp/presentation/widgets/tag_chip.dart';
-
-final selectedTagProvider = StateProvider<int?>((ref) => null);
 
 class AllTasksList extends ConsumerWidget {
   final List<Task> tasks;
@@ -14,38 +10,11 @@ class AllTasksList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allTags = ref.watch(tagProvider);
-    final selectedTag = ref.watch(selectedTagProvider);
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (allTags.isNotEmpty)
-          SizedBox(
-            height: 60,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              scrollDirection: Axis.horizontal,
-              itemCount: allTags.length,
-              itemBuilder: (context, index) {
-                final tag = allTags[index];
-                return TagChip(
-                  tag: tag,
-                  isSelected: selectedTag == tag.id,
-                  onSelected: (isSelected) {
-                    final notifier = ref.read(selectedTagProvider.notifier);
-                    if (notifier.state == tag.id) {
-                      notifier.state = null; // Deseleccionar
-                    } else {
-                      notifier.state = tag.id; // Seleccionar
-                    }
-                  },
-                );
-              },
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-            ),
-          ),
         Expanded(
           child: tasks.isEmpty
               ? Center(
@@ -71,22 +40,51 @@ class AllTasksList extends ConsumerWidget {
 
                     if (showHeader) {
                       final date = task.dueDate;
-                      String dateText = date == null
-                          ? 'Sin Fecha'
-                          : DateFormat(
-                              'EEE, d MMM, yyyy',
-                              'es_ES',
-                            ).format(date);
+                      Widget header;
+                      if (date == null) {
+                        header = Text(
+                          'Sin Fecha',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                          ),
+                        );
+                      } else {
+                        String dayOfWeekAndNumber = DateFormat(
+                          'EEEE d',
+                          'es_ES',
+                        ).format(date);
+                        dayOfWeekAndNumber =
+                            dayOfWeekAndNumber[0].toUpperCase() +
+                            dayOfWeekAndNumber.substring(1);
+                        String year = DateFormat('yyyy', 'es_ES').format(date);
+                        header = Row(
+                          children: [
+                            Text(
+                              dayOfWeekAndNumber,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              year,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        );
+                      }
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 16, 16, 8),
-                            child: Text(
-                              dateText,
-                              style: textTheme.headlineSmall,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                            child: header,
                           ),
                           DismissibleTaskCard(task: task, showDate: false),
                         ],

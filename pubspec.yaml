@@ -45,6 +45,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   sqflite_common_ffi: ^2.3.3
+  # PAQUETE AÑADIDO PARA EL ICONO DE LA APP
+  flutter_launcher_icons: "^0.13.1"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -68,7 +70,8 @@ flutter:
   assets:
     - lib/core/database/script.sql
     - assets/Outfit/
-
+    # 🖼️ Asegúrate de crear una carpeta "assets/images/" y poner tu icono aquí.
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -102,3 +105,13 @@ flutter:
           weight: 800
         - asset: assets/Outfit/Outfit-Black.ttf
           weight: 900
+
+# ⚙️ CONFIGURACIÓN DEL PAQUETE flutter_launcher_icons (corregida para evitar error de iOS)
+flutter_launcher_icons:
+  android: true 
+  ios: false # ⬅️ CAMBIADO A 'false' para evitar el error de ruta de iOS.
+  image_path: "assets/images/app_icon.png" # ⬅️ DEBES TENER TU ICONO EN ESTA RUTA
+  
+  # Opcional: Si quieres iconos adaptativos de Android (debes tener los archivos):
+  # adaptive_icon_background: "#FFFFFF" 
+  # adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
