@@ -42,14 +42,31 @@ class DateHeader extends ConsumerWidget {
                     duration: const Duration(milliseconds: 400),
                     curve: Curves.easeInOutCubic,
                     width: double.infinity,
-                    child: Row(
-                      mainAxisAlignment: isFormVisible
-                          ? MainAxisAlignment.end
-                          : MainAxisAlignment.start,
+                    child: Stack(
                       children: [
-                        AnimatedSize(
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: isFormVisible ? 1.0 : 0.0,
+                          child: AnimatedSlide(
+                            duration: const Duration(milliseconds: 300),
+                            offset: Offset(isFormVisible ? 0 : -1, 0),
+                            child: const Text(
+                              "Nueva Tarea",
+                              style: TextStyle(
+                                fontFamily: KioraTypography.headlines,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                                fontSize: 34.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                        AnimatedAlign(
                           duration: const Duration(milliseconds: 400),
                           curve: Curves.easeInOutCubic,
+                          alignment: isFormVisible
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
