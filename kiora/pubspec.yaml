@@ -1,0 +1,50 @@
+name: kiora
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations: 
+    sdk: flutter
+  intl: ^0.20.2 # Para internacionalización y formateo de fechas
+  drift: ^2.13.0 # O la versión más reciente
+  sqlite3_flutter_libs: ^0.5.0 # Para la implementación nativa en Flutter
+  path_provider: ^2.1.1 # Para encontrar la ruta de la DB en el dispositivo
+  path: ^1.8.3 # Herramienta para manejo de ruta
+
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.4.5 # O la versión más reciente compatible
+  riverpod_annotation: ^2.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  drift_dev: ^2.13.0 # Para la generación de código
+  build_runner: ^2.4.6 # El motor para ejecutar drift_dev
+  riverpod_generator: ^2.2.1
+
+flutter:
+  uses-material-design: true
+  
+  fonts:
+    - family: BricolageGrotesque
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BricolageGrotesque-ExtraBold.ttf
+          weight: 800
+
+    - family: IBMPlexSans
+      fonts:
+        - asset: assets/fonts/IBMPlexSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexSans-Medium.ttf
+          weight: 500
