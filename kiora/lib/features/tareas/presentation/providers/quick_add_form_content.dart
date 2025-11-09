@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
-import 'package:kiora/features/tareas/presentation/providers/widgets/inputs/task_title_input.dart';
-import 'package:kiora/features/tareas/presentation/providers/widgets/inputs/category_selector.dart';
-import 'package:kiora/features/tareas/presentation/providers/widgets/inputs/due_date_selector.dart';
-import 'package:kiora/features/tareas/presentation/providers/widgets/inputs/duration_input.dart';
+import 'package:kiora/features/tareas/presentation/providers/inputs/task_title_input.dart';
+import 'package:kiora/features/tareas/presentation/providers/inputs/category_selector.dart';
+import 'package:kiora/features/tareas/presentation/providers/inputs/due_date_selector.dart';
+import 'package:kiora/features/tareas/presentation/providers/inputs/duration_input.dart';
 
 final quickAddFormProvider =
     StateNotifierProvider<QuickAddFormNotifier, QuickAddFormState>((ref) {
@@ -104,61 +104,80 @@ class QuickAddFormContentState extends ConsumerState<QuickAddFormContent> {
 
     return Container(
       width: double.infinity,
-      color: Colors.white,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Campo de título
-            const TaskTitleInput(),
-            const SizedBox(height: 32),
-            // Campo de categoría
-            const CategorySelector(),
-            const SizedBox(height: 32),
-            // Campo de fecha límite
-            const DueDateSelector(),
-            const SizedBox(height: 32),
-            // Campo de duración
-            const DurationInput(),
-            const SizedBox(height: 24),
-            // Botón dinámico (Cancelar/Guardar)
-            Center(
-              child: SizedBox(
-                width: 200,
-                child: TextButton(
-                  onPressed: () {
-                    if (!formState.isCompleted) {
-                      ref.read(quickAddFormProvider.notifier).resetForm();
-                      ref.read(quickAddFormVisibilityProvider.notifier).hide();
-                    } else {
-                      ref.read(quickAddFormProvider.notifier).resetForm();
-                      ref.read(quickAddFormVisibilityProvider.notifier).hide();
-                    }
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: formState.isCompleted
-                        ? KioraColors.accentKiora
-                        : Colors.grey.shade400,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: Text(
-                    formState.isCompleted ? 'Guardar' : 'Cancelar',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+      height: MediaQuery.of(context).size.height,
+      child: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            color: Colors.white,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(38.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Campo de título
+                  const TaskTitleInput(),
+                  const SizedBox(height: 28),
+                  // Campo de categoría
+                  const CategorySelector(),
+                  const SizedBox(height: 28),
+                  // Campo de fecha límite
+                  const DueDateSelector(),
+                  const SizedBox(height: 24),
+                  // Campo de duración
+                  const DurationInput(),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            right: 24,
+            bottom: 24,
+            child: FloatingActionButton(
+              onPressed: () async {
+                if (formState.isCompleted) {
+                  // Mostrar diálogo de confirmación
+                  final shouldSave = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Confirmar'),
+                      content: const Text('¿Deseas guardar esta tarea?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Guardar'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (shouldSave ?? false) {
+                    // Aquí irá la lógica para guardar
+                    ref.read(quickAddFormProvider.notifier).resetForm();
+                    ref.read(quickAddFormVisibilityProvider.notifier).hide();
+                  }
+                } else {
+                  // Si no está completo, simplemente salir
+                  ref.read(quickAddFormProvider.notifier).resetForm();
+                  ref.read(quickAddFormVisibilityProvider.notifier).hide();
+                }
+              },
+              backgroundColor: formState.isCompleted
+                  ? KioraColors.successGreen
+                  : Colors.grey.shade400,
+              child: Icon(
+                formState.isCompleted ? Icons.save : Icons.close,
+                size: 28,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

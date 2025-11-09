@@ -49,7 +49,7 @@ class DateHeader extends ConsumerWidget {
                         width: double.infinity,
                         child: Stack(
                           clipBehavior: Clip.none,
-                          children: <Widget>[
+                          children: [
                             Positioned(
                               right: 0,
                               top: 4,
@@ -70,8 +70,7 @@ class DateHeader extends ConsumerWidget {
                                     width: 32,
                                     height: 32,
                                     child: Stack(
-                                      clipBehavior: Clip.none,
-                                      children: <Widget>[
+                                      children: [
                                         Positioned(
                                           left: 0,
                                           top: 0,
@@ -132,34 +131,33 @@ class DateHeader extends ConsumerWidget {
                             ),
                             TweenAnimationBuilder<double>(
                               tween: Tween<double>(
-                                begin: 0.0,
-                                end: isFormVisible ? 1.0 : 0.0,
+                                begin: 0,
+                                end: isFormVisible ? 1 : 0,
                               ),
                               duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeInOutCubic,
                               builder: (context, value, child) {
-                                if (value == 0) {
+                                if (!isFormVisible || value == 0)
                                   return const SizedBox.shrink();
-                                }
                                 return Opacity(
                                   opacity: value,
                                   child: Transform.translate(
                                     offset: Offset(-50 * (1 - value), 0),
                                     child: Transform.scale(
-                                      scale: (0.9 + (0.1 * value)).toDouble(),
-                                      child: child,
+                                      scale: 0.9 + (0.1 * value),
+                                      child: Text(
+                                        "Nueva Tarea",
+                                        style: const TextStyle(
+                                          fontFamily: KioraTypography.headlines,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                          fontSize: 34.0,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 );
                               },
-                              child: const Text(
-                                "Nueva Tarea",
-                                style: TextStyle(
-                                  fontFamily: KioraTypography.headlines,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                  fontSize: 34.0,
-                                ),
-                              ),
                             ),
                             AnimatedAlign(
                               duration: const Duration(milliseconds: 350),
@@ -169,7 +167,7 @@ class DateHeader extends ConsumerWidget {
                                   : Alignment.centerLeft,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
+                                children: [
                                   AnimatedDefaultTextStyle(
                                     duration: const Duration(milliseconds: 400),
                                     curve: Curves.easeInOutCubic,
@@ -197,7 +195,7 @@ class DateHeader extends ConsumerWidget {
                                       color: Colors.black,
                                       fontSize: isFormVisible ? 20.0 : 40.0,
                                     ),
-                                    child: const Text(','),
+                                    child: const Text(', '),
                                   ),
                                   AnimatedDefaultTextStyle(
                                     duration: const Duration(milliseconds: 400),
@@ -231,7 +229,7 @@ class DateHeader extends ConsumerWidget {
                         quickAddFormVisibilityProvider,
                       );
                       return Stack(
-                        children: <Widget>[
+                        children: [
                           Container(
                             color: Colors.white,
                             child: const SizedBox.expand(),
@@ -249,6 +247,22 @@ class DateHeader extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              final isSidebarVisible = ref.watch(sidebarVisibilityProvider);
+              return AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                top: 0,
+                right: isSidebarVisible
+                    ? 0
+                    : -(MediaQuery.of(context).size.width * 0.2),
+                bottom: 0,
+                width: MediaQuery.of(context).size.width * 0.2,
+                child: Container(color: Colors.black),
+              );
+            },
           ),
         ],
       ),

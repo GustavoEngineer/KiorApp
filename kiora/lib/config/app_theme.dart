@@ -49,6 +49,10 @@ class KioraColors {
   /// Usado para: Tareas atrasadas, errores de sincronización,
   /// y acciones destructivas (Eliminar)
   static const alert = Color(0xFFFF3B30);
+
+  /// Color verde de acción exitosa
+  /// Usado para: Acciones completadas y botones de confirmación
+  static const successGreen = Color.fromARGB(255, 144, 200, 104);
 }
 
 /// Configuración del tema claro de Kiora
