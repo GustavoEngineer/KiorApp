@@ -6,7 +6,6 @@ import 'package:kiora/features/tareas/presentation/providers/quick_add_buttom_no
     as quick_add;
 import 'package:kiora/features/tareas/presentation/providers/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
-import 'package:kiora/features/home/presentation/providers/sidebar_visibility_provider.dart';
 
 class DateHeader extends ConsumerWidget {
   const DateHeader({super.key});
@@ -57,15 +56,7 @@ class DateHeader extends ConsumerWidget {
                                 duration: const Duration(milliseconds: 400),
                                 opacity: isFormVisible ? 0.0 : 1.0,
                                 child: GestureDetector(
-                                  onTap: () {
-                                    ref
-                                        .read(
-                                          sidebarVisibilityProvider.notifier,
-                                        )
-                                        .state = !ref.read(
-                                      sidebarVisibilityProvider,
-                                    );
-                                  },
+                                  onTap: () {},
                                   child: SizedBox(
                                     width: 32,
                                     height: 32,
