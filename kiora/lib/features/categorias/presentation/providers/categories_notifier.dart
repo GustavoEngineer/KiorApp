@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Provider que guarda la lista de categorías en memoria.
 final categoriesProvider =
     StateNotifierProvider<CategoriesNotifier, List<String>>((ref) {
-  return CategoriesNotifier();
-});
+      return CategoriesNotifier();
+    });
 
 class CategoriesNotifier extends StateNotifier<List<String>> {
   CategoriesNotifier() : super([]);
