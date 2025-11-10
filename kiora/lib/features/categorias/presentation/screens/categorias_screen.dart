@@ -18,18 +18,27 @@ Future<void> showCategoriasBottomSheet(BuildContext context) {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
         ),
-        child: _CategoriasSheet(),
+        child: SizedBox(
+          // Keep the sheet constrained similarly to the embedded panel
+          height: MediaQuery.of(sheetContext).size.height * 0.6,
+          child: CategoriesPanel(),
+        ),
       );
     },
   );
 }
 
-class _CategoriasSheet extends StatefulWidget {
+/// Reusable panel widget that displays categories UI. It manages its own
+/// in-memory list and can be embedded inside the drawer (or used inside the
+/// bottom sheet by `showCategoriasBottomSheet`).
+class CategoriesPanel extends StatefulWidget {
+  const CategoriesPanel({Key? key}) : super(key: key);
+
   @override
-  State<_CategoriasSheet> createState() => _CategoriasSheetState();
+  State<CategoriesPanel> createState() => _CategoriesPanelState();
 }
 
-class _CategoriasSheetState extends State<_CategoriasSheet> {
+class _CategoriesPanelState extends State<CategoriesPanel> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<String> _categories = [];
@@ -46,7 +55,6 @@ class _CategoriasSheetState extends State<_CategoriasSheet> {
     if (v.isEmpty) return;
     setState(() => _categories.add(v));
     _controller.clear();
-    // scroll to bottom to reveal newly added item
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
@@ -59,88 +67,64 @@ class _CategoriasSheetState extends State<_CategoriasSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.of(context).size.height * 0.6;
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          const Text(
+            'Categorías',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2.0),
-                  ),
-                ),
-              ),
-              const Text(
-                'Categorías',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      autofocus: true,
-                      textInputAction: TextInputAction.done,
-                      decoration: const InputDecoration(
-                        labelText: 'Nueva categoría',
-                        isDense: true,
-                      ),
-                      onSubmitted: _addCategory,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => _addCategory(_controller.text),
-                    child: const Text('Aceptar'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text('Tus categorías:'),
-              const SizedBox(height: 8),
               Expanded(
-                child: _categories.isEmpty
-                    ? const Center(child: Text('No tienes categorías aún.'))
-                    : ListView.separated(
-                        controller: _scrollController,
-                        itemCount: _categories.length,
-                        separatorBuilder: (_, __) => const Divider(),
-                        itemBuilder: (context, index) {
-                          final item = _categories[index];
-                          return ListTile(
-                            title: Text(item),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => setState(() {
-                                _categories.removeAt(index);
-                              }),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cerrar'),
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Nueva categoría',
+                    isDense: true,
+                  ),
+                  onSubmitted: _addCategory,
                 ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => _addCategory(_controller.text),
+                child: const Text('Aceptar'),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          const Text('Tus categorías:'),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 220,
+            child: _categories.isEmpty
+                ? const Center(child: Text('No tienes categorías aún.'))
+                : ListView.separated(
+                    controller: _scrollController,
+                    itemCount: _categories.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final item = _categories[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(item),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => setState(() {
+                            _categories.removeAt(index);
+                          }),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
