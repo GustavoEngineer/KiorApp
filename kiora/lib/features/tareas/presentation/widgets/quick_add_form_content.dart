@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
-import 'package:kiora/features/tareas/presentation/providers/inputs/task_title_input.dart';
-import 'package:kiora/features/tareas/presentation/providers/inputs/category_selector.dart';
-import 'package:kiora/features/tareas/presentation/providers/inputs/due_date_selector.dart';
-import 'package:kiora/features/tareas/presentation/providers/inputs/duration_input.dart';
+import 'package:kiora/features/tareas/presentation/widgets/inputs/task_title_input.dart';
+import 'package:kiora/features/tareas/presentation/widgets/inputs/category_selector.dart';
+import 'package:kiora/features/tareas/presentation/widgets/inputs/due_date_selector.dart';
+import 'package:kiora/features/tareas/presentation/widgets/inputs/duration_input.dart';
 
 final quickAddFormProvider =
     StateNotifierProvider<QuickAddFormNotifier, QuickAddFormState>((ref) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
-import 'package:kiora/features/tareas/presentation/providers/quick_add_form_content.dart';
+import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
 
 class DurationInput extends ConsumerWidget {
   const DurationInput({super.key});

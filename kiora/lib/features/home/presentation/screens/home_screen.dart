@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kiora/config/app_theme.dart';
-import 'package:kiora/features/tareas/presentation/providers/quick_add_buttom_notifier.dart'
+import 'package:kiora/features/tareas/presentation/widgets/quick_add_buttom_notifier.dart'
     as quick_add;
-import 'package:kiora/features/tareas/presentation/providers/quick_add_form_content.dart';
+import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
 import 'package:kiora/features/home/presentation/widgets/drawer_navigation_notifier.dart';
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
-import 'package:kiora/features/categorias/presentation/screens/categorias_screen.dart';
+import 'package:kiora/features/categorias/presentation/screens/categorias_screen_model.dart';
 
 /// Secciones internas del drawer que pueden expandirse.
 enum DrawerSection { none, categorias }
@@ -150,12 +150,9 @@ class DrawerNavigationPanel extends ConsumerWidget {
                             const SizedBox.shrink(),
                           ],
 
-                          // Push the right-area to the far right, then render a
-                          // minimal-width row containing the optional divider and
-                          // the icon. This guarantees the divider sits adjacent to
-                          // the icon and the left panel uses the remaining width.
-                          const Spacer(),
-
+                          // Render a minimal-width row containing the optional divider
+                          // and the icon after the left panel. The Expanded above
+                          // will take the remaining space, so no Spacer is needed.
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
