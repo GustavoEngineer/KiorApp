@@ -163,44 +163,101 @@ class DrawerNavigationPanel extends ConsumerWidget {
                             const SizedBox(width: 0),
                           ],
 
-                          // Right: narrow column with interactive icons
-                          Column(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 8),
-                              // Category icon placed to the right of the divider, aligned to top
-                              InkWell(
+                          // Right: show different layout depending on whether a section is open
+                          if (expanded == DrawerSection.none) ...[
+                            // When closed: keep the icon at a fixed square size
+                            // aligned to the right so it doesn't occupy the whole panel.
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: InkWell(
                                 onTap: () {
-                                  // Alternar la sección de Categorías dentro del drawer
                                   ref
                                       .read(drawerNavigationProvider.notifier)
                                       .toggleSection(DrawerSection.categorias);
                                 },
-                                borderRadius: BorderRadius.circular(10.0),
-                                child: Container(
-                                  padding: const EdgeInsets.all(10.0),
-                                  decoration: BoxDecoration(
-                                    color: KioraColors.accentKiora,
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.12),
-                                        offset: const Offset(0, 2),
-                                        blurRadius: 6.0,
-                                        spreadRadius: 0.0,
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: SizedBox.square(
+                                  dimension: 48,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: KioraColors.accentKiora,
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.12),
+                                          offset: const Offset(0, 2),
+                                          blurRadius: 6.0,
+                                          spreadRadius: 0.0,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.sell,
+                                        color: Colors.white,
+                                        size: 24,
                                       ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.sell,
-                                    color: Colors.white,
-                                    size: 32,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ] else ...[
+                            // When expanded: keep a narrow interactive column (existing behavior)
+                            Flexible(
+                              fit: FlexFit.loose,
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    InkWell(
+                                      onTap: () {
+                                        ref
+                                            .read(
+                                              drawerNavigationProvider.notifier,
+                                            )
+                                            .toggleSection(
+                                              DrawerSection.categorias,
+                                            );
+                                      },
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      child: SizedBox.square(
+                                        dimension: 48,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: KioraColors.accentKiora,
+                                            borderRadius: BorderRadius.circular(
+                                              8.0,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(
+                                                  0.12,
+                                                ),
+                                                offset: const Offset(0, 2),
+                                                blurRadius: 6.0,
+                                                spreadRadius: 0.0,
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.sell,
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
