@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
-// Categories feature removed for now; icon kept as placeholder.
+import 'package:kiora/features/categorias/presentation/screens/categorias_screen.dart';
 
 /// Estado del drawer lateral.
 ///
@@ -100,8 +100,9 @@ class DrawerNavigationPanel extends ConsumerWidget {
                         const SizedBox(height: 8),
                         InkWell(
                           onTap: () {
-                            // Placeholder: categories section removed. Icon kept
-                            // for future implementation. No action for now.
+                            // Abrir la implementación de la sección de categorías
+                            // que ahora vive en `categorias_screen.dart`.
+                            showCategoriasBottomSheet(context);
                           },
                           borderRadius: BorderRadius.circular(10.0),
                           child: Container(
