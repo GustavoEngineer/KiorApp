@@ -138,7 +138,8 @@ class DrawerNavigationPanel extends ConsumerWidget {
                           if (expanded == DrawerSection.categorias) ...[
                             Expanded(
                               child: Padding(
-                                padding: const EdgeInsets.only(right: 12.0),
+                                // Reduce right padding so the left content can use more width
+                                padding: const EdgeInsets.only(right: 2.0),
                                 child: SingleChildScrollView(
                                   child: CategoriesPanel(),
                                 ),
@@ -149,115 +150,74 @@ class DrawerNavigationPanel extends ConsumerWidget {
                             const SizedBox.shrink(),
                           ],
 
-                          // Divider that occupies the full height of the panel.
-                          // It only appears when the categorias section is expanded.
-                          if (expanded == DrawerSection.categorias) ...[
-                            Container(
-                              width: 1,
-                              color: Colors.black12,
-                              height: double.infinity,
-                            ),
-                            const SizedBox(width: 12),
-                          ] else ...[
-                            // When closed, the divider disappears and no extra gap is added.
-                            const SizedBox(width: 0),
-                          ],
+                          // Push the right-area to the far right, then render a
+                          // minimal-width row containing the optional divider and
+                          // the icon. This guarantees the divider sits adjacent to
+                          // the icon and the left panel uses the remaining width.
+                          const Spacer(),
 
-                          // Right: show different layout depending on whether a section is open
-                          if (expanded == DrawerSection.none) ...[
-                            // When closed: keep the icon at a fixed square size
-                            // aligned to the right so it doesn't occupy the whole panel.
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: InkWell(
-                                onTap: () {
-                                  ref
-                                      .read(drawerNavigationProvider.notifier)
-                                      .toggleSection(DrawerSection.categorias);
-                                },
-                                borderRadius: BorderRadius.circular(8.0),
-                                child: SizedBox.square(
-                                  dimension: 48,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: KioraColors.accentKiora,
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.12),
-                                          offset: const Offset(0, 2),
-                                          blurRadius: 6.0,
-                                          spreadRadius: 0.0,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (expanded == DrawerSection.categorias) ...[
+                                Container(
+                                  width: 1,
+                                  color: Colors.black12,
+                                  height: double.infinity,
+                                ),
+                                // Small separation between divider and icon for clarity
+                                // Reduced from 4 -> 3 to avoid 1px overflow on narrow layouts
+                                const SizedBox(width: 3),
+                              ],
+
+                              // Icon (same in both states) placed right next to the divider
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 8.0,
+                                  right: 2.0,
+                                ),
+                                child: InkWell(
+                                  onTap: () {
+                                    ref
+                                        .read(drawerNavigationProvider.notifier)
+                                        .toggleSection(
+                                          DrawerSection.categorias,
+                                        );
+                                  },
+                                  borderRadius: BorderRadius.circular(10.0),
+                                  child: SizedBox.square(
+                                    dimension: 48,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: KioraColors.accentKiora,
+                                        borderRadius: BorderRadius.circular(
+                                          8.0,
                                         ),
-                                      ],
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.sell,
-                                        color: Colors.white,
-                                        size: 24,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.12,
+                                            ),
+                                            offset: const Offset(0, 2),
+                                            blurRadius: 6.0,
+                                            spreadRadius: 0.0,
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.sell,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ] else ...[
-                            // When expanded: keep a narrow interactive column (existing behavior)
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Align(
-                                alignment: Alignment.topCenter,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 8),
-                                    InkWell(
-                                      onTap: () {
-                                        ref
-                                            .read(
-                                              drawerNavigationProvider.notifier,
-                                            )
-                                            .toggleSection(
-                                              DrawerSection.categorias,
-                                            );
-                                      },
-                                      borderRadius: BorderRadius.circular(10.0),
-                                      child: SizedBox.square(
-                                        dimension: 48,
-                                        child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            color: KioraColors.accentKiora,
-                                            borderRadius: BorderRadius.circular(
-                                              8.0,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withOpacity(
-                                                  0.12,
-                                                ),
-                                                offset: const Offset(0, 2),
-                                                blurRadius: 6.0,
-                                                spreadRadius: 0.0,
-                                              ),
-                                            ],
-                                          ),
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.sell,
-                                              color: Colors.white,
-                                              size: 24,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ],
                       ),
                     ),
