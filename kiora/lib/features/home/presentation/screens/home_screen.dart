@@ -6,6 +6,7 @@ import 'package:kiora/features/tareas/presentation/providers/quick_add_buttom_no
     as quick_add;
 import 'package:kiora/features/tareas/presentation/providers/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
+import 'package:kiora/features/home/presentation/providers/drawer_navigation_notifier.dart';
 
 class DateHeader extends ConsumerWidget {
   const DateHeader({super.key});
@@ -19,13 +20,7 @@ class DateHeader extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Consumer(
-        builder: (context, ref, child) {
-          final isFormVisible = ref.watch(quickAddFormVisibilityProvider);
-          if (isFormVisible) return const SizedBox.shrink();
-          return ref.watch(quick_add.quickAddButtonProvider);
-        },
-      ),
+      floatingActionButton: const SizedBox.shrink(),
       body: Stack(
         children: [
           SafeArea(
@@ -56,66 +51,18 @@ class DateHeader extends ConsumerWidget {
                                 duration: const Duration(milliseconds: 400),
                                 opacity: isFormVisible ? 0.0 : 1.0,
                                 child: GestureDetector(
-                                  onTap: () {},
+                                  onTap: () => ref
+                                      .read(drawerNavigationProvider.notifier)
+                                      .toggle(),
                                   child: SizedBox(
                                     width: 32,
                                     height: 32,
-                                    child: Stack(
-                                      clipBehavior: Clip.none,
-                                      children: <Widget>[
-                                        Positioned(
-                                          left: 0,
-                                          top: 0,
-                                          child: Container(
-                                            width: 14,
-                                            height: 14,
-                                            decoration: BoxDecoration(
-                                              color: KioraColors.accentKiora,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 0,
-                                          top: 0,
-                                          child: Container(
-                                            width: 14,
-                                            height: 14,
-                                            decoration: BoxDecoration(
-                                              color: Colors.black,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          left: 0,
-                                          bottom: 0,
-                                          child: Container(
-                                            width: 14,
-                                            height: 14,
-                                            decoration: BoxDecoration(
-                                              color: Colors.black,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 0,
-                                          bottom: 0,
-                                          child: Container(
-                                            width: 14,
-                                            height: 14,
-                                            decoration: BoxDecoration(
-                                              color: KioraColors.accentKiora,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.menu,
+                                        color: Colors.black,
+                                        size: 24,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -241,6 +188,44 @@ class DateHeader extends ConsumerWidget {
               ],
             ),
           ),
+          // Adaptive add-button: sits above content and resizes to avoid the drawer
+          Consumer(
+            builder: (context, ref, child) {
+              final isFormVisible = ref.watch(quickAddFormVisibilityProvider);
+              final drawerState = ref.watch(drawerNavigationProvider);
+              final screenWidth = MediaQuery.of(context).size.width;
+              final drawerWidth = drawerState.isOpen
+                  ? screenWidth * drawerState.widthFactor
+                  : 0.0;
+              final remainingWidth = screenWidth - drawerWidth;
+
+              if (isFormVisible) return const SizedBox.shrink();
+
+              // compute target button width with margins, keep a sensible minimum
+              double targetWidth =
+                  remainingWidth - 32.0; // leave 16px side margins
+              if (targetWidth < 160.0) {
+                targetWidth = remainingWidth < 160.0 ? remainingWidth : 160.0;
+              }
+              if (targetWidth > remainingWidth) targetWidth = remainingWidth;
+
+              return Positioned(
+                bottom: 24,
+                left: 0,
+                child: SizedBox(
+                  width: remainingWidth,
+                  child: Center(
+                    child: SizedBox(
+                      width: targetWidth,
+                      child: ref.watch(quick_add.quickAddButtonProvider),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Drawer panel (encapsulado en DrawerNavigationPanel)
+          const DrawerNavigationPanel(),
         ],
       ),
     );
