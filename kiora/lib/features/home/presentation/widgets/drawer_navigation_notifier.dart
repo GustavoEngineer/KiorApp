@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
 import 'package:kiora/features/categorias/presentation/screens/categorias_screen.dart';
@@ -89,13 +90,17 @@ class DrawerNavigationPanel extends ConsumerWidget {
     final widthFactor = drawerState.widthFactor;
     final expanded = drawerState.expandedSection;
     final screenWidth = MediaQuery.of(context).size.width;
-  // When a section is expanded, increase the drawer width by an extra
-  // fraction so the expanded content can be displayed inside the same panel.
-  // A bit larger to give more room for the embedded UI when categorias opens.
-  const extraForExpanded = 0.36; // 36% extra when expanded
+    // When a section is expanded, increase the drawer width by an extra
+    // fraction so the expanded content can be displayed inside the same panel.
+    // A bit larger to give more room for the embedded UI when categorias opens.
+    const extraForExpanded = 0.55; // 46% extra when expanded (bigger expansion)
     final extra = expanded == DrawerSection.none ? 0.0 : extraForExpanded;
     final totalFactor = (widthFactor + extra).clamp(0.0, 0.9);
-    final drawerWidth = screenWidth * totalFactor;
+    // Avoid fractional-pixel overflows by using a floored, clamped width.
+    final drawerWidth = math.min(
+      screenWidth,
+      (screenWidth * totalFactor).floorToDouble(),
+    );
 
     return IgnorePointer(
       ignoring: !isOpen,
@@ -124,107 +129,80 @@ class DrawerNavigationPanel extends ConsumerWidget {
                 child: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 8),
-                        // Row with category icon and an info icon separated by a vertical divider
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            InkWell(
-                              onTap: () {
-                                // Alternar la sección de Categorías dentro del drawer
-                                ref
-                                    .read(drawerNavigationProvider.notifier)
-                                    .toggleSection(DrawerSection.categorias);
-                              },
-                              borderRadius: BorderRadius.circular(10.0),
-                              child: Container(
-                                padding: const EdgeInsets.all(12.0),
-                                decoration: BoxDecoration(
-                                  color: KioraColors.accentKiora,
-                                  borderRadius: BorderRadius.circular(10.0),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.12),
-                                      offset: const Offset(0, 2),
-                                      blurRadius: 6.0,
-                                      spreadRadius: 0.0,
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.sell,
-                                  color: Colors.white,
-                                  size: 32,
+                    child: SizedBox(
+                      height: double.infinity,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Left: categories content (only shown when expanded)
+                          if (expanded == DrawerSection.categorias) ...[
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12.0),
+                                child: SingleChildScrollView(
+                                  child: CategoriesPanel(),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Vertical divider between icons
+                          ] else ...[
+                            // keep zero width when not expanded
+                            const SizedBox.shrink(),
+                          ],
+
+                          // Divider that occupies the full height of the panel.
+                          // It only appears when the categorias section is expanded.
+                          if (expanded == DrawerSection.categorias) ...[
                             Container(
                               width: 1,
-                              height: 40,
                               color: Colors.black12,
+                              height: double.infinity,
                             ),
                             const SizedBox(width: 12),
-                            // Info icon
-                            InkWell(
-                              onTap: () {
-                                showDialog<void>(
-                                  context: context,
-                                  builder: (ctx) {
-                                    return AlertDialog(
-                                      title: const Text('Información'),
-                                      content: const Text(
-                                          'Panel lateral: aquí puedes ver o gestionar categorías.'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(ctx).pop(),
-                                          child: const Text('Cerrar'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(10.0),
-                                child: Container(
-                                padding: const EdgeInsets.all(10.0),
-                                decoration: BoxDecoration(
-                                  color: KioraColors.backgroundLight,
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                child: const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.black54,
-                                  size: 26,
-                                ),
-                              ),
-                            ),
+                          ] else ...[
+                            // When closed, the divider disappears and no extra gap is added.
+                            const SizedBox(width: 0),
                           ],
-                        ),
-                        // Expanded content area: show categories UI inline
-                        // when the 'categorias' section is expanded.
-                        AnimatedCrossFade(
-                          firstChild: const SizedBox.shrink(),
-                          secondChild: Padding(
-                            padding: const EdgeInsets.only(top: 12.0),
-                            child: SizedBox(
-                              height: 320,
-                              child: SingleChildScrollView(
-                                child: CategoriesPanel(),
+
+                          // Right: narrow column with interactive icons
+                          Column(
+                            mainAxisSize: MainAxisSize.max,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 8),
+                              // Category icon placed to the right of the divider, aligned to top
+                              InkWell(
+                                onTap: () {
+                                  // Alternar la sección de Categorías dentro del drawer
+                                  ref
+                                      .read(drawerNavigationProvider.notifier)
+                                      .toggleSection(DrawerSection.categorias);
+                                },
+                                borderRadius: BorderRadius.circular(10.0),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10.0),
+                                  decoration: BoxDecoration(
+                                    color: KioraColors.accentKiora,
+                                    borderRadius: BorderRadius.circular(10.0),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.12),
+                                        offset: const Offset(0, 2),
+                                        blurRadius: 6.0,
+                                        spreadRadius: 0.0,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.sell,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                          crossFadeState: expanded == DrawerSection.categorias
-                              ? CrossFadeState.showSecond
-                              : CrossFadeState.showFirst,
-                          duration: const Duration(milliseconds: 300),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

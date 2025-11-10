@@ -6,7 +6,7 @@ import 'package:kiora/features/tareas/presentation/providers/quick_add_buttom_no
     as quick_add;
 import 'package:kiora/features/tareas/presentation/providers/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
-import 'package:kiora/features/home/presentation/providers/drawer_navigation_notifier.dart';
+import 'package:kiora/features/home/presentation/widgets/drawer_navigation_notifier.dart';
 
 class DateHeader extends ConsumerWidget {
   const DateHeader({super.key});

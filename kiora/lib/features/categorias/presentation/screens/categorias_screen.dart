@@ -91,11 +91,7 @@ class _CategoriesPanelState extends State<CategoriesPanel> {
                   onSubmitted: _addCategory,
                 ),
               ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () => _addCategory(_controller.text),
-                child: const Text('Aceptar'),
-              ),
+              // Removed the Accept button per UX request; submission is via keyboard (Enter)
             ],
           ),
           const SizedBox(height: 12),
