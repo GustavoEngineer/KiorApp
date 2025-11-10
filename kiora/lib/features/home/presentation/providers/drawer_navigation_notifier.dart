@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
-import 'package:kiora/features/categorias/presentation/screens/categorias_screen.dart';
+// Categories feature removed for now; icon kept as placeholder.
 
 /// Estado del drawer lateral.
 ///
@@ -99,7 +99,10 @@ class DrawerNavigationPanel extends ConsumerWidget {
                       children: [
                         const SizedBox(height: 8),
                         InkWell(
-                          onTap: () => showCategoriasModal(context),
+                          onTap: () {
+                            // Placeholder: categories section removed. Icon kept
+                            // for future implementation. No action for now.
+                          },
                           borderRadius: BorderRadius.circular(10.0),
                           child: Container(
                             padding: const EdgeInsets.all(12.0),
