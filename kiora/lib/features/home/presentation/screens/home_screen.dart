@@ -89,6 +89,9 @@ class DateHeader extends ConsumerWidget {
                                                 );
                                               },
                                         );
+                                        // Ensure focus is cleared when returning from the dialog
+                                        // so the keyboard doesn't open on the main screen.
+                                        FocusScope.of(context).unfocus();
                                       },
                                       child: Icon(
                                         Icons.category,

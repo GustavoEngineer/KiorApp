@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
+import 'package:flutter/services.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
 import 'package:kiora/features/tareas/presentation/widgets/inputs/task_title_input.dart';
 import 'package:kiora/features/tareas/presentation/widgets/inputs/category_selector.dart';
@@ -158,11 +159,19 @@ class QuickAddFormContentState extends ConsumerState<QuickAddFormContent> {
 
                   if (shouldSave ?? false) {
                     // Aquí irá la lógica para guardar
+                    // Clear focus and explicitly hide the keyboard to avoid it
+                    // reappearing on the main screen when the form is closed.
+                    FocusScope.of(context).unfocus();
+                    SystemChannels.textInput.invokeMethod('TextInput.hide');
                     ref.read(quickAddFormProvider.notifier).resetForm();
                     ref.read(quickAddFormVisibilityProvider.notifier).hide();
                   }
                 } else {
                   // Si no está completo, simplemente salir
+                  // Clear focus and explicitly hide keyboard so it doesn't
+                  // reappear when returning to the main screen.
+                  FocusScope.of(context).unfocus();
+                  SystemChannels.textInput.invokeMethod('TextInput.hide');
                   ref.read(quickAddFormProvider.notifier).resetForm();
                   ref.read(quickAddFormVisibilityProvider.notifier).hide();
                 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:kiora/config/app_theme.dart';
+import 'package:flutter/services.dart';
 import 'package:kiora/core/di/core_providers.dart';
 import 'package:kiora/core/data_sources/app_database.dart' as db;
 import 'package:drift/drift.dart' show Value;
@@ -271,7 +272,12 @@ class _CategoryCenteredDialogState
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    // Clear focus and hide keyboard before closing
+                    FocusScope.of(context).unfocus();
+                    SystemChannels.textInput.invokeMethod('TextInput.hide');
+                    Navigator.of(context).pop();
+                  },
                   child: const Text('Cerrar'),
                 ),
               ),
@@ -287,6 +293,9 @@ class _CategoryCenteredDialogState
     if (text.isEmpty) return;
     ref.read(categoriesProvider.notifier).add(text, _selectedPriority);
     _controller.clear();
+    // Hide keyboard and unfocus after adding so it doesn't reappear
+    FocusScope.of(context).unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
   }
 
   Color _priorityBorderColor(int priority) {
