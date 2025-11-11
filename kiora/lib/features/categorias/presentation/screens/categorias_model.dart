@@ -1,28 +1,76 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:kiora/config/app_theme.dart';
+import 'package:kiora/core/di/core_providers.dart';
+import 'package:kiora/core/data_sources/app_database.dart' as db;
+import 'package:drift/drift.dart' show Value;
+
+/// Category model holding name and numeric priority (1..5).
+class Category {
+  final String name;
+  final int priority;
+
+  Category({required this.name, required this.priority});
+}
 
 /// Simple categories state holder using Riverpod.
+/// Provider that keeps categories in sync with the local Drift DB.
 final categoriesProvider =
-    StateNotifierProvider<CategoriesNotifier, List<String>>(
-      (ref) => CategoriesNotifier(),
+    StateNotifierProvider<CategoriesNotifier, List<Category>>(
+      (ref) => CategoriesNotifier(ref),
     );
 
-class CategoriesNotifier extends StateNotifier<List<String>> {
-  CategoriesNotifier() : super(<String>[]);
+class CategoriesNotifier extends StateNotifier<List<Category>> {
+  final Ref ref;
+  StreamSubscription<List<db.Categoria>>? _sub;
 
-  void add(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return;
-    if (state.contains(trimmed)) return;
-    state = [...state, trimmed];
+  CategoriesNotifier(this.ref) : super(<Category>[]) {
+    // Subscribe to DB changes and mirror them into the notifier state.
+    final dbRef = ref.read(appDatabaseProvider);
+    _sub = dbRef.select(dbRef.categorias).watch().listen((rows) {
+      // Map Drift model to local lightweight Category model
+      final mapped = rows
+          .map((r) => Category(name: r.nombre, priority: r.importancia))
+          .toList(growable: false);
+      state = mapped;
+    });
   }
 
-  void removeAt(int index) {
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  /// Inserts a new category into the DB. The DB stream will update `state`.
+  Future<void> add(String name, int priority) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    // avoid duplicates by name
+    if (state.any((c) => c.name == trimmed)) return;
+    final dbRef = ref.read(appDatabaseProvider);
+    await dbRef
+        .into(dbRef.categorias)
+        .insert(
+          db.CategoriasCompanion.insert(
+            nombre: trimmed,
+            importancia: Value(priority),
+            needsSync: Value(true),
+          ),
+        );
+  }
+
+  /// Remove by index mapped from current state. This will delete rows matching the name.
+  Future<void> removeAt(int index) async {
     if (index < 0 || index >= state.length) return;
-    final newList = [...state]..removeAt(index);
-    state = newList;
+    final cat = state[index];
+    final dbRef = ref.read(appDatabaseProvider);
+    await (dbRef.delete(
+      dbRef.categorias,
+    )..where((t) => t.nombre.equals(cat.name))).go();
   }
 }
 
@@ -151,7 +199,7 @@ class _CategoryCenteredDialogState
                 ],
               ),
               const SizedBox(height: 12),
-              // List area: keep it flexible but constrained so dialog isn't huge
+              // List area: show categories as wrapped chips inside a white box
               Expanded(
                 child: categories.isEmpty
                     ? const Center(
@@ -160,17 +208,61 @@ class _CategoryCenteredDialogState
                           style: TextStyle(color: Colors.grey),
                         ),
                       )
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: categories.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (ctx, i) => ListTile(
-                          title: Text(categories[i]),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => ref
-                                .read(categoriesProvider.notifier)
-                                .removeAt(i),
+                    : SingleChildScrollView(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.grey.shade100),
+                          ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: categories.asMap().entries.map((e) {
+                              final idx = e.key;
+                              final cat = e.value;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _priorityBorderColor(cat.priority),
+                                    width: 1.4,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(cat.name),
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => ref
+                                          .read(categoriesProvider.notifier)
+                                          .removeAt(idx),
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ),
                       ),
@@ -193,7 +285,14 @@ class _CategoryCenteredDialogState
   void _addCategory() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    ref.read(categoriesProvider.notifier).add(text);
+    ref.read(categoriesProvider.notifier).add(text, _selectedPriority);
     _controller.clear();
+  }
+
+  Color _priorityBorderColor(int priority) {
+    // Blend from a very light accent to the full accent color based on priority (1..5)
+    final t = ((priority - 1) / 4).clamp(0.0, 1.0);
+    final light = KioraColors.accentKiora.withOpacity(0.20);
+    return Color.lerp(light, KioraColors.accentKiora, t)!;
   }
 }
