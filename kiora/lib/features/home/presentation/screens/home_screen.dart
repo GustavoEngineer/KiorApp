@@ -6,6 +6,8 @@ import 'package:kiora/features/tareas/presentation/widgets/quick_add_buttom_noti
     as quick_add;
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
+import 'package:kiora/features/categorias/presentation/screens/categorias_model.dart';
+import 'dart:ui' show ImageFilter;
 // Sidebar / drawer removed. Drawer notifier and panel were deleted.
 
 class DateHeader extends ConsumerWidget {
@@ -59,10 +61,34 @@ class DateHeader extends ConsumerWidget {
                                   child: Center(
                                     child: GestureDetector(
                                       behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        // Funcionalidad de categorías eliminada.
-                                        // El icono se conserva como elemento visual.
-                                        // (Antes abría `CategoryCenteredDialog`.)
+                                      onTap: () async {
+                                        // Abrir diálogo centrado con blur de fondo.
+                                        await showGeneralDialog(
+                                          context: context,
+                                          barrierDismissible: true,
+                                          barrierLabel: 'Categorías',
+                                          barrierColor: Colors.transparent,
+                                          transitionDuration: const Duration(
+                                            milliseconds: 180,
+                                          ),
+                                          pageBuilder:
+                                              (context, animation, secondary) {
+                                                return BackdropFilter(
+                                                  filter: ImageFilter.blur(
+                                                    sigmaX: 6.0,
+                                                    sigmaY: 6.0,
+                                                  ),
+                                                  child: Container(
+                                                    color: Colors.black
+                                                        .withOpacity(0.12),
+                                                    child: Center(
+                                                      child:
+                                                          const CategoryCenteredDialog(),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                        );
                                       },
                                       child: Icon(
                                         Icons.category,
