@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kiora/config/app_theme.dart';
-import 'package:kiora/features/categorias/presentation/screens/categorias_screen_model.dart';
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_buttom_notifier.dart'
     as quick_add;
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
@@ -60,19 +59,10 @@ class DateHeader extends ConsumerWidget {
                                   child: Center(
                                     child: GestureDetector(
                                       behavior: HitTestBehavior.opaque,
-                                      onTap: () async {
-                                        // show bottom sheet for categories
-                                        await showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          shape: const RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(16),
-                                            ),
-                                          ),
-                                          builder: (ctx) =>
-                                              const CategoryBottomSheet(),
-                                        );
+                                      onTap: () {
+                                        // Funcionalidad de categorías eliminada.
+                                        // El icono se conserva como elemento visual.
+                                        // (Antes abría `CategoryCenteredDialog`.)
                                       },
                                       child: Icon(
                                         Icons.category,
