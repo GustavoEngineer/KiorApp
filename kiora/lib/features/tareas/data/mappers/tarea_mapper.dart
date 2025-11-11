@@ -56,7 +56,7 @@ class TareaMapper {
       completada: Value(domain.completada),
       creadaEn: Value(domain.creadaEn),
       needsSync: Value(domain.needsSync),
-      lastSyncAt: Value.ofNullable(domain.lastSyncAt),
+      lastSyncAt: Value.absentIfNull(domain.lastSyncAt),
     );
   }
 }

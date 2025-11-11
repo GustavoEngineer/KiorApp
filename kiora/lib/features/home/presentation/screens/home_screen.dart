@@ -6,6 +6,8 @@ import 'package:kiora/features/tareas/presentation/widgets/quick_add_buttom_noti
     as quick_add;
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
+import 'package:kiora/features/tareas/data/providers/repository_providers.dart';
+import 'package:kiora/features/tareas/presentation/widgets/task_card_base.dart';
 import 'package:kiora/features/categorias/presentation/screens/categorias_model.dart';
 import 'dart:ui' show ImageFilter;
 // Sidebar / drawer removed. Drawer notifier and panel were deleted.
@@ -204,12 +206,62 @@ class DateHeader extends ConsumerWidget {
                       final isFormVisible = ref.watch(
                         quickAddFormVisibilityProvider,
                       );
+
+                      final tareasAsync = ref.watch(
+                        tareasAsignadasParaHoyProvider,
+                      );
+
                       return Stack(
                         children: <Widget>[
-                          Container(
-                            color: Colors.white,
-                            child: const SizedBox.expand(),
+                          // Area principal: lista de tareas (detrás del formulario)
+                          Positioned.fill(
+                            child: tareasAsync.when(
+                              data: (tareas) {
+                                if (tareas.isEmpty) {
+                                  return Container(
+                                    color: Colors.white,
+                                    child: const Center(
+                                      child: Text('No hay tareas'),
+                                    ),
+                                  );
+                                }
+
+                                return Container(
+                                  color: Colors.white,
+                                  child: ListView.separated(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24.0,
+                                      vertical: 16.0,
+                                    ),
+                                    itemCount: tareas.length,
+                                    itemBuilder: (context, index) {
+                                      final t = tareas[index];
+                                      return TaskCardBase(
+                                        title: t.titulo,
+                                        description:
+                                            'Categoria: ${t.categoria.nombre}',
+                                        dueDate: t.fechaLimite,
+                                        completed: t.completada,
+                                      );
+                                    },
+                                    separatorBuilder: (context, index) =>
+                                        const SizedBox(height: 8),
+                                  ),
+                                );
+                              },
+                              loading: () => Container(
+                                color: Colors.white,
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                              error: (e, st) => Container(
+                                color: Colors.white,
+                                child: Center(child: Text('Error: $e')),
+                              ),
+                            ),
                           ),
+
                           AnimatedSlide(
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeInOut,

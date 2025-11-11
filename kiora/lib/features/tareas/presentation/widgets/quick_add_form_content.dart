@@ -7,6 +7,14 @@ import 'package:kiora/features/tareas/presentation/widgets/inputs/task_title_inp
 import 'package:kiora/features/tareas/presentation/widgets/inputs/category_selector.dart';
 import 'package:kiora/features/tareas/presentation/widgets/inputs/due_date_selector.dart';
 import 'package:kiora/features/tareas/presentation/widgets/inputs/duration_input.dart';
+import 'package:kiora/core/di/core_providers.dart';
+import 'package:kiora/core/data_sources/app_database.dart' as db;
+import 'package:drift/drift.dart' show Value;
+import 'package:kiora/features/categorias/domain/models/categoria_model.dart'
+    as cat_dom;
+import 'package:kiora/features/tareas/domain/models/tarea_model.dart'
+    as tarea_dom;
+import 'package:kiora/features/tareas/data/providers/repository_providers.dart';
 
 final quickAddFormProvider =
     StateNotifierProvider<QuickAddFormNotifier, QuickAddFormState>((ref) {
@@ -158,13 +166,87 @@ class QuickAddFormContentState extends ConsumerState<QuickAddFormContent> {
                   );
 
                   if (shouldSave ?? false) {
-                    // Aquí irá la lógica para guardar
-                    // Clear focus and explicitly hide the keyboard to avoid it
-                    // reappearing on the main screen when the form is closed.
-                    FocusScope.of(context).unfocus();
-                    SystemChannels.textInput.invokeMethod('TextInput.hide');
-                    ref.read(quickAddFormProvider.notifier).resetForm();
-                    ref.read(quickAddFormVisibilityProvider.notifier).hide();
+                    // Lógica para guardar la tarea en la DB local usando el repositorio
+                    // Capturamos el ScaffoldMessenger antes de cualquier await para
+                    // evitar usar BuildContext a través de saltos async.
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      final dbRef = ref.read(appDatabaseProvider);
+
+                      // Buscar categoría por nombre en la DB; si no existe, crearla.
+                      final allCats = await dbRef
+                          .select(dbRef.categorias)
+                          .get();
+                      db.Categoria? matchedCat;
+                      try {
+                        matchedCat = allCats.firstWhere(
+                          (r) => r.nombre == formState.categoria,
+                        );
+                      } catch (e) {
+                        matchedCat = null;
+                      }
+
+                      if (matchedCat == null) {
+                        final trimmed = formState.categoria.trim();
+                        final newId = await dbRef
+                            .into(dbRef.categorias)
+                            .insert(
+                              db.CategoriasCompanion.insert(
+                                nombre: trimmed,
+                                importancia: Value(1),
+                                needsSync: Value(true),
+                              ),
+                            );
+                        final refreshed = await dbRef
+                            .select(dbRef.categorias)
+                            .get();
+                        matchedCat = refreshed.firstWhere((r) => r.id == newId);
+                      }
+
+                      // Construir modelo de dominio Categoria
+                      final categoriaDominio = cat_dom.Categoria(
+                        id: matchedCat.id,
+                        nombre: matchedCat.nombre,
+                        importancia: matchedCat.importancia,
+                      );
+
+                      // Construir modelo de dominio Tarea
+                      final nuevaTarea = tarea_dom.Tarea(
+                        id: null,
+                        titulo: formState.titulo.trim(),
+                        fechaLimite: formState.fechaLimite!,
+                        duracionEstimada: formState.duracionEstimada,
+                        prioridadScore: 0.0,
+                        completada: false,
+                        creadaEn: DateTime.now(),
+                        categoria: categoriaDominio,
+                      );
+
+                      // Guardar mediante el repositorio
+                      final repo = ref.read(tareaRepositoryProvider);
+                      await repo.crearTarea(nuevaTarea, categoriaDominio);
+
+                      // Feedback al usuario (usamos el messenger capturado)
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('Tarea guardada')),
+                        );
+                      }
+
+                      // Clear focus and explicitly hide the keyboard to avoid it
+                      // reappearing on the main screen when the form is closed.
+                      FocusScope.of(context).unfocus();
+                      SystemChannels.textInput.invokeMethod('TextInput.hide');
+                      ref.read(quickAddFormProvider.notifier).resetForm();
+                      ref.read(quickAddFormVisibilityProvider.notifier).hide();
+                    } catch (e) {
+                      // Mostrar error simple usando el messenger capturado
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text('Error al guardar: $e')),
+                        );
+                      }
+                    }
                   }
                 } else {
                   // Si no está completo, simplemente salir
