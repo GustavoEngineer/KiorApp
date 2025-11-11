@@ -1,126 +1,190 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Muestra un bottom sheet con la UI y lógica mínima de "Categorías".
-///
-/// Esta implementación gestiona una lista en memoria (List<String>) local al
-/// sheet: permite añadir (Enter o botón Aceptar) y borrar categorías. No
-/// persiste datos; sirve como scaffold inicial para la sección de categorías.
-Future<void> showCategoriasBottomSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
-    ),
-    builder: (sheetContext) {
-      return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-        ),
-        child: SizedBox(
-          // Keep the sheet constrained similarly to the embedded panel
-          height: MediaQuery.of(sheetContext).size.height * 0.6,
-          child: CategoriesPanel(),
-        ),
-      );
-    },
-  );
+/// Provider para la lista de categorías (lista simple de strings).
+final categoriasProvider =
+    StateNotifierProvider<CategoriasNotifier, List<String>>(
+      (ref) => CategoriasNotifier(),
+    );
+
+class CategoriasNotifier extends StateNotifier<List<String>> {
+  CategoriasNotifier() : super([]);
+
+  void addCategoria(String name) {
+    final n = name.trim();
+    if (n.isEmpty) return;
+    // evitar duplicados exactos
+    if (state.contains(n)) return;
+    state = [...state, n];
+  }
+
+  void removeAt(int index) {
+    if (index < 0 || index >= state.length) return;
+    final newList = [...state];
+    newList.removeAt(index);
+    state = newList;
+  }
+
+  void clear() => state = [];
 }
 
-/// Reusable panel widget that displays categories UI. It manages its own
-/// in-memory list and can be embedded inside the drawer (or used inside the
-/// bottom sheet by `showCategoriasBottomSheet`).
-class CategoriesPanel extends StatefulWidget {
-  const CategoriesPanel({Key? key}) : super(key: key);
+/// Bottom sheet que muestra el formulario para agregar una categoría y la lista
+/// de categorías actuales. Toda la lógica de añadir/borrar usa el provider
+/// `categoriasProvider`.
+class CategoryBottomSheet extends ConsumerStatefulWidget {
+  const CategoryBottomSheet({super.key});
 
   @override
-  State<CategoriesPanel> createState() => _CategoriesPanelState();
+  ConsumerState<CategoryBottomSheet> createState() =>
+      _CategoryBottomSheetState();
 }
 
-class _CategoriesPanelState extends State<CategoriesPanel> {
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final List<String> _categories = [];
+class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
+  final _controller = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _controller.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
-  void _addCategory(String value) {
-    final v = value.trim();
-    if (v.isEmpty) return;
-    setState(() => _categories.add(v));
+  void _add() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    ref.read(categoriasProvider.notifier).addCategoria(text);
     _controller.clear();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    });
+    // keep focus on the field
+    FocusScope.of(context).requestFocus(FocusNode());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          const Text(
-            'Categorías',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    final categorias = ref.watch(categoriasProvider);
+
+    return Material(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: 'Nueva categoría',
-                    isDense: true,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  onSubmitted: _addCategory,
                 ),
-              ),
-              // Removed the Accept button per UX request; submission is via keyboard (Enter)
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text('Tus categorías:'),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 220,
-            child: _categories.isEmpty
-                ? const Center(child: Text('No tienes categorías aún.'))
-                : ListView.separated(
-                    controller: _scrollController,
-                    itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final item = _categories[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(item),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => setState(() {
-                            _categories.removeAt(index);
-                          }),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _controller,
+                            textInputAction: TextInputAction.done,
+                            decoration: const InputDecoration(
+                              labelText: 'Nueva categoría',
+                              hintText: 'Escribe el nombre',
+                            ),
+                            onFieldSubmitted: (_) => _add(),
+                          ),
                         ),
-                      );
-                    },
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: _add,
+                          child: const Text('Añadir'),
+                        ),
+                      ],
+                    ),
                   ),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Categorías',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: categorias.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Center(
+                            child: Text(
+                              'Aún no hay categorías. Añade una arriba.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          itemCount: categorias.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final name = categorias[index];
+                            return Dismissible(
+                              key: ValueKey(name + index.toString()),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                color: Colors.redAccent,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                ),
+                                child: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              onDismissed: (_) {
+                                ref
+                                    .read(categoriasProvider.notifier)
+                                    .removeAt(index);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Categoría "${name}" eliminada',
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: ListTile(
+                                title: Text(name),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () {
+                                    ref
+                                        .read(categoriasProvider.notifier)
+                                        .removeAt(index);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

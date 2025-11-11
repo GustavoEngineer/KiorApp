@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kiora/config/app_theme.dart';
+import 'package:kiora/features/categorias/presentation/screens/categorias_screen_model.dart';
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_buttom_notifier.dart'
     as quick_add;
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
 import 'package:kiora/features/tareas/presentation/providers/form_visibility_provider.dart';
-import 'package:kiora/features/home/presentation/widgets/drawer_navigation_notifier.dart';
+// Sidebar / drawer removed. Drawer notifier and panel were deleted.
 
 class DateHeader extends ConsumerWidget {
   const DateHeader({super.key});
@@ -44,24 +45,39 @@ class DateHeader extends ConsumerWidget {
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: <Widget>[
+                            // Top-right label icon (Kiora primary color)
                             Positioned(
                               right: 0,
-                              top: 4,
+                              top: 0,
+                              bottom: 0,
                               child: AnimatedOpacity(
                                 duration: const Duration(milliseconds: 400),
                                 opacity: isFormVisible ? 0.0 : 1.0,
-                                child: GestureDetector(
-                                  onTap: () => ref
-                                      .read(drawerNavigationProvider.notifier)
-                                      .toggle(),
-                                  child: SizedBox(
-                                    width: 32,
-                                    height: 32,
-                                    child: Center(
+                                // Show only the icon (no background, no shadow) and make it larger
+                                child: SizedBox(
+                                  width: 56,
+                                  height: 56,
+                                  child: Center(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () async {
+                                        // show bottom sheet for categories
+                                        await showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(16),
+                                            ),
+                                          ),
+                                          builder: (ctx) =>
+                                              const CategoryBottomSheet(),
+                                        );
+                                      },
                                       child: Icon(
-                                        Icons.menu,
-                                        color: Colors.black,
-                                        size: 24,
+                                        Icons.category,
+                                        color: KioraColors.accentKiora,
+                                        size: 36,
                                       ),
                                     ),
                                   ),
@@ -135,7 +151,8 @@ class DateHeader extends ConsumerWidget {
                                       color: Colors.black,
                                       fontSize: isFormVisible ? 20.0 : 40.0,
                                     ),
-                                    child: const Text(','),
+                                    // Add a space after the comma so the date reads "Lunes, nov 10"
+                                    child: const Text(', '),
                                   ),
                                   AnimatedDefaultTextStyle(
                                     duration: const Duration(milliseconds: 400),
@@ -192,12 +209,9 @@ class DateHeader extends ConsumerWidget {
           Consumer(
             builder: (context, ref, child) {
               final isFormVisible = ref.watch(quickAddFormVisibilityProvider);
-              final drawerState = ref.watch(drawerNavigationProvider);
               final screenWidth = MediaQuery.of(context).size.width;
-              final drawerWidth = drawerState.isOpen
-                  ? screenWidth * drawerState.widthFactor
-                  : 0.0;
-              final remainingWidth = screenWidth - drawerWidth;
+              // No drawer: remaining width is the full screen width.
+              final remainingWidth = screenWidth;
 
               if (isFormVisible) return const SizedBox.shrink();
 
@@ -224,8 +238,7 @@ class DateHeader extends ConsumerWidget {
               );
             },
           ),
-          // Drawer panel (encapsulado en DrawerNavigationPanel)
-          const DrawerNavigationPanel(),
+          // Drawer removed; no panel rendered.
         ],
       ),
     );
