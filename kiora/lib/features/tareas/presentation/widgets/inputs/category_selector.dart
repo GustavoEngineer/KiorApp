@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kiora/config/app_theme.dart';
 import 'package:kiora/features/tareas/presentation/widgets/quick_add_form_content.dart';
-import 'package:kiora/core/di/core_providers.dart';
-import 'package:kiora/core/data_sources/app_database.dart' as db;
+import 'package:kiora/features/categorias/presentation/screens/categorias_model.dart';
+// core providers and direct DB access not required here; we use categoriesProvider
 
 class CategorySelector extends ConsumerStatefulWidget {
   const CategorySelector({super.key});
@@ -40,8 +40,8 @@ class CategorySelectorState extends ConsumerState<CategorySelector> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtener la instancia de la BD para escuchar las categorías
-    final dbRef = ref.watch(appDatabaseProvider);
+    // Obtener las categorías desde el provider (ya se sincroniza con la BD)
+    final categorias = ref.watch(categoriesProvider);
 
     // Widget principal: campo de texto + lista de sugerencias cuando tiene foco
     return Column(
@@ -74,16 +74,24 @@ class CategorySelectorState extends ConsumerState<CategorySelector> {
                   : Colors.black,
             ),
           ),
-          onChanged: (value) =>
-              ref.read(quickAddFormProvider.notifier).updateCategoria(value),
+          onChanged: (value) {
+            // Update provider and rebuild so the suggestions list is recomputed
+            ref.read(quickAddFormProvider.notifier).updateCategoria(value);
+            setState(() {});
+          },
         ),
 
         // Mostrar sugerencias sólo cuando el campo tiene foco
         if (categoryFocus.hasFocus)
-          StreamBuilder<List<db.Categoria>>(
-            stream: dbRef.select(dbRef.categorias).watch(),
-            builder: (context, snapshot) {
-              final categorias = snapshot.data ?? <db.Categoria>[];
+          Builder(
+            builder: (context) {
+              // Filtrar según el texto actual del controlador (case-insensitive).
+              final input = _controller.text.trim().toLowerCase();
+              final filtered = input.isEmpty
+                  ? categorias
+                  : categorias
+                        .where((c) => c.name.toLowerCase().contains(input))
+                        .toList(growable: false);
 
               return Container(
                 margin: const EdgeInsets.only(top: 8),
@@ -108,40 +116,68 @@ class CategorySelectorState extends ConsumerState<CategorySelector> {
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
                       )
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: categorias.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final item = categorias[index];
-                          return Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                // Rellenar input y actualizar provider
-                                _controller.text = item.nombre;
-                                ref
-                                    .read(quickAddFormProvider.notifier)
-                                    .updateCategoria(item.nombre);
-                                // Quitar foco para cerrar la lista
-                                categoryFocus.unfocus();
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                                child: Text(item.nombre),
+                    : (filtered.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Text(
+                                'No hay categorías que coincidan',
+                                style: TextStyle(color: Colors.grey.shade600),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            )
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: filtered.map((cat) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: _priorityBorderColor(
+                                          cat.priority,
+                                        ),
+                                        width: 1.4,
+                                      ),
+                                    ),
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        // seleccionar la categoría
+                                        _controller.text = cat.name;
+                                        _controller.selection =
+                                            TextSelection.fromPosition(
+                                              TextPosition(
+                                                offset: _controller.text.length,
+                                              ),
+                                            );
+                                        ref
+                                            .read(quickAddFormProvider.notifier)
+                                            .updateCategoria(cat.name);
+                                        categoryFocus.unfocus();
+                                      },
+                                      child: Text(cat.name),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            )),
               );
             },
           ),
       ],
     );
+  }
+
+  Color _priorityBorderColor(int priority) {
+    // Blend from a very light accent to the full accent color based on priority (1..5)
+    final t = ((priority - 1) / 4).clamp(0.0, 1.0);
+    final light = KioraColors.accentKiora.withOpacity(0.20);
+    return Color.lerp(light, KioraColors.accentKiora, t)!;
   }
 }
